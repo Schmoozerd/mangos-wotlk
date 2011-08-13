@@ -2141,11 +2141,12 @@ class MANGOS_DLL_SPEC Unit : public WorldObject
         uint32 m_lastManaUseTimer;
 
         VehicleInfo* m_vehicleInfo;
+
         void DisableSpline();
         bool m_isCreatureLinkingTrigger;
         bool m_isSpawningLinked;
 
-    private:
+    public:
         void CleanupDeletedAuras();
         void UpdateSplineMovement(uint32 t_diff);
 

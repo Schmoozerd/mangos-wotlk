@@ -232,6 +232,10 @@ void WorldSession::HandleGroupAcceptOpcode(WorldPacket& recv_data)
     // everything is fine, do it, PLAYER'S GROUP IS SET IN ADDMEMBER!!!
     if (!group->AddMember(GetPlayer()->GetObjectGuid(), GetPlayer()->GetName()))
         return;
+
+    // Spoof factions of other group members
+    if (sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_SPOOF_FACTIONS))
+        group->BroadcastGroupUpdate();
 }
 
 void WorldSession::HandleGroupDeclineOpcode(WorldPacket& /*recv_data*/)

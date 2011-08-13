@@ -865,8 +865,9 @@ Raid.MinLevel = 10
 #    AllowTwoSide.Interaction.Auction
 #    AllowTwoSide.Interaction.Mail
 #    AllowTwoSide.Interaction.Calendar
+#    AllowTwoSide.Interaction.Trade
 #        Allow or not common :chat(say,yell);channel(chat)group(join)guild(join);merge all auction houses for players from
-#        different teams, send mail to different team, calendar(invite player from different team)
+#        different teams, send mail to different team, calendar(invite player from different team), trade with enemies (if in group).
 #        Default: 0 (Not allowed)
 #                 1 (Allowed)
 #
@@ -879,6 +880,11 @@ Raid.MinLevel = 10
 #        Allow adding friends from other team in friend list.
 #        Default: 0 (Not allowed)
 #                 1 (Allowed)
+#
+#    AllowTwoSide.SpoofFactions
+#        Allow spoofing factions for enemy players within same group
+#        Default: 0 (Not allowed)
+#                 1 (Allowed - This enables hacks!)
 #
 #    TalentsInspecting
 #        Allow other players see character talents in inspect dialog (Characters in Gamemaster mode can
@@ -896,8 +902,10 @@ AllowTwoSide.Interaction.Guild = 0
 AllowTwoSide.Interaction.Auction = 0
 AllowTwoSide.Interaction.Mail = 0
 AllowTwoSide.Interaction.Calendar = 0
+AllowTwoSide.Interaction.Trade = 0
 AllowTwoSide.WhoList = 0
 AllowTwoSide.AddFriend = 0
+AllowTwoSide.SpoofFactions = 0
 TalentsInspecting = 1
 
 ###################################################################################################################

@@ -604,7 +604,7 @@ void WorldSession::HandleInitiateTradeOpcode(WorldPacket& recvPacket)
         return;
     }
 
-    if (pOther->GetTeam() != _player->GetTeam())
+    if (pOther->GetTeam() !=_player->GetTeam() && !sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_TRADE) && !pOther->IsInSameGroupWith(_player))
     {
         SendTradeStatus(TRADE_STATUS_WRONG_FACTION);
         return;

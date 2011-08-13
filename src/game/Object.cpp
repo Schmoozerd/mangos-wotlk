@@ -535,6 +535,57 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                             *data << (m_uint32Values[index] & ~(UNIT_DYNFLAG_TAPPED | UNIT_DYNFLAG_TAPPED_BY_PLAYER));
                     }
                 }
+                // Spoofing of faction if enabled by config
+                else if (sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_SPOOF_FACTIONS) && (index == UNIT_FIELD_BYTES_2 || index == UNIT_FIELD_FACTIONTEMPLATE))
+                {
+                    bool spoofed = false;
+
+                    if ((GetTypeId() == TYPEID_PLAYER || GetTypeId() == TYPEID_UNIT) && target != this)
+                    {
+                        bool forcefriendly = false;         // bool for pets/totems to offload more code from the big if below
+
+                        if (GetTypeId() == TYPEID_UNIT)
+                        {
+                            Creature* cme = (Creature*)this;
+                            forcefriendly = (cme->IsTotem() || cme->IsPet())
+                                            // no need to send hackfix to pet owner
+                                            && cme->GetOwner() != target
+                                            // pet owner must be friendly to target
+                                            && cme->GetOwner()->IsFriendlyTo(target)
+                                            // They must be in the same group
+                                            && cme->GetOwner()->GetTypeId() == TYPEID_PLAYER
+                                            && (target->IsInSameGroupWith((Player*)cme->GetOwner()) || target->IsInSameRaidWith((Player*)cme->GetOwner()));
+                        }
+
+                        if (forcefriendly || (target->GetTypeId() == TYPEID_PLAYER && GetTypeId() == TYPEID_PLAYER && (target->IsInSameGroupWith((Player*)this) || target->IsInSameRaidWith((Player*)this))))
+                        {
+                            if (index == UNIT_FIELD_BYTES_2)
+                            {
+                                DEBUG_LOG("FACTION_SPOOFING- VALUES_UPDATE: Sending '%s' the blue-group-fix from '%s' (flag)", target->GetName(), ((Unit*)this)->GetName());
+                                *data << ( m_uint32Values[ index ] & (UNIT_BYTE2_FLAG_SANCTUARY << 8) ); // this flag is at uint8 offset 1 !!
+                                spoofed = true;
+                            }
+                            else if(index == UNIT_FIELD_FACTIONTEMPLATE)
+                            {
+                                FactionTemplateEntry const *ft1, *ft2;
+                                ft1 = ((Unit*)this)->getFactionTemplateEntry();
+                                ft2 = ((Unit*)target)->getFactionTemplateEntry();
+
+                                if (ft1 && ft2 && !ft1->IsFriendlyTo(*ft2))
+                                {
+                                    // pretend that all other HOSTILE units in group have own faction, to allow follow, heal, rezz (trade wont work)
+                                    uint32 faction = ((Player*)target)->getFaction();
+                                    DEBUG_LOG("FACTION_SPOOFING- VALUES_UPDATE: Sending '%s' the blue-group-fix from '%s' (faction %u)", target->GetName(), ((Unit*)this)->GetName(), faction);
+                                    *data << uint32(faction);
+                                    spoofed = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (!spoofed)
+                        *data << m_uint32Values[index];
+                }
                 else
                 {
                     // send in current format (float as float, uint32 as uint32)
@@ -1620,6 +1671,19 @@ Creature* WorldObject::SummonCreature(uint32 id, float x, float y, float z, floa
 
     // return the creature therewith the summoner has access to it
     return pCreature;
+}
+
+void Object::ForceValuesUpdateAtIndex(uint32 i)
+{
+    m_changedValues[i] = true; // makes server think the field changed
+    if(m_inWorld)
+    {
+        if(!m_objectUpdated)
+        {
+            AddToClientUpdateList();
+            m_objectUpdated = true;
+        }
+    }
 }
 
 namespace MaNGOS

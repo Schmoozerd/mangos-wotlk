@@ -346,6 +346,10 @@ bool Group::AddMember(ObjectGuid guid, const char* name)
 
 uint32 Group::RemoveMember(ObjectGuid guid, uint8 method)
 {
+    // Only spoofing required if enabled in config
+    if (sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_SPOOF_FACTIONS))
+        BroadcastGroupUpdate();
+
     // remove member and change leader (if need) only if strong more 2 members _before_ member remove
     if (GetMembersCount() > uint32(isBGGroup() ? 1 : 2))    // in BG group case allow 1 members group
     {
@@ -1957,6 +1961,35 @@ void Group::RewardGroupAtKill(Unit* pVictim, Player* player_tap)
             // member (alive or dead) or his corpse at req. distance
             if (player_tap->IsAtGroupRewardDistance(pVictim))
                 RewardGroupAtKill_helper(player_tap, pVictim, count, PvP, group_rate, sum_level, is_dungeon, not_gray_member_with_max_level, member_with_max_level, xp);
+        }
+    }
+}
+
+void Group::BroadcastGroupUpdate()
+{
+    for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
+    {
+        Player *pp = sObjectMgr.GetPlayer(citr->guid);
+        if (pp && pp->IsInWorld())
+        {
+            pp->ForceValuesUpdateAtIndex(UNIT_FIELD_BYTES_2);
+            pp->ForceValuesUpdateAtIndex(UNIT_FIELD_FACTIONTEMPLATE);
+            DEBUG_LOG("FACTION_SPOOFING- Forced group value update for '%s'", pp->GetName());
+            if (pp->GetPet())
+            {
+                pp->GetPet()->ForceValuesUpdateAtIndex(UNIT_FIELD_BYTES_2);
+                pp->GetPet()->ForceValuesUpdateAtIndex(UNIT_FIELD_FACTIONTEMPLATE);
+                DEBUG_LOG("FACTION_SPOOFING- Forced group value update for '%s' pet '%s'", pp->GetName(), pp->GetPet()->GetName());
+            }
+            for (uint32 i = 0; i < MAX_TOTEM_SLOT; ++i)
+            {
+                if (Unit *totem = pp->GetMap()->GetUnit(pp->m_TotemSlot[i]))
+                {
+                    totem->ForceValuesUpdateAtIndex(UNIT_FIELD_BYTES_2);
+                    totem->ForceValuesUpdateAtIndex(UNIT_FIELD_FACTIONTEMPLATE);
+                    DEBUG_LOG("FACTION_SPOOFING- Forced group value update for '%s' totem #%u", pp->GetName(), i);
+                }
+            }
         }
     }
 }
