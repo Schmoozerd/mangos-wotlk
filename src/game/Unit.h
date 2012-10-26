@@ -680,7 +680,8 @@ class MovementInfo
 {
     public:
         MovementInfo() : moveFlags(MOVEFLAG_NONE), moveFlags2(MOVEFLAG2_NONE),
-            s_pitch(0.0f), fallTime(0), u_unk1(0.0f) {}
+                pitchAngle(0.0f), fallTime(0), jump_verticalVelocity(0.0f), jump_directionX(0.0f),
+                jump_directionY(0.0f), jump_horizontalVelocity(0.0f), spline_elevation(0.0f) {}
 
         static MovementAndPositionInfo BuildMovementAndPositionInfo(Unit const* owner);
 
@@ -691,29 +692,36 @@ class MovementInfo
         void SetMovementFlags(MovementFlags f) { moveFlags = f; }
         bool HasMovementFlag(MovementFlags f) const { return moveFlags & f; }
 
+        // Getters
         MovementFlags GetMovementFlags() const { return MovementFlags(moveFlags); }
         MovementFlags2 GetMovementFlags2() const { return MovementFlags2(moveFlags2); }
+
         uint32 GetFallTime() const { return fallTime; }
 
-        struct JumpInfo
-        {
-            JumpInfo() : velocity(0.f), sinAngle(0.f), cosAngle(0.f), xyspeed(0.f) {}
-            float   velocity, sinAngle, cosAngle, xyspeed;
-        };
+        float GetVerticalJumpVelocity() const { return jump_verticalVelocity; }
+        float GetJumpDirectionX() const { return jump_directionX; }
+        float GetJumpDirectionY() const { return jump_directionY; }
+        float GetHorizontalJumpVelocity() const { return jump_horizontalVelocity; }
 
-        JumpInfo const& GetJumpInfo() const { return jump; }
     protected:
-        // common
-        uint32   moveFlags;                                 // see enum MovementFlags
-        uint16   moveFlags2;                                // see enum MovementFlags2
+        // Common
+        uint32 moveFlags;                                 // see enum MovementFlags
+        uint16 moveFlags2;                                // see enum MovementFlags2
+
         // swimming and flying
-        float    s_pitch;
-        // last fall time
-        uint32   fallTime;
-        // jumping
-        JumpInfo jump;
-        // spline
-        float    u_unk1;
+        float pitchAngle; // Internal still not used
+
+        // Last fall time
+        uint32 fallTime;
+
+        // Jumping data
+        float jump_verticalVelocity;
+        float jump_directionX;
+        float jump_directionY;
+        float jump_horizontalVelocity;
+
+        // Spline data
+        float spline_elevation; // Internal still not used
 };
 
 class MovementAndPositionInfo : public MovementInfo
@@ -753,12 +761,13 @@ class MovementAndPositionInfo : public MovementInfo
 
     private:
         Position position;
-        uint32 time;
         ObjectGuid transportGuid;
         Position localPosition;
-        uint32 transportTime;
         uint8 seat;
-        uint32 transportTime2;
+
+        uint32 time;
+        uint32 transportTime; // Purpose unknown
+        uint32 transportTime2; // Purpose unknown
 };
 
 inline ByteBuffer& operator<< (ByteBuffer& buf, MovementAndPositionInfo const& mi)

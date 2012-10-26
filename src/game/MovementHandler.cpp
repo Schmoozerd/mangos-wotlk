@@ -446,10 +446,10 @@ void WorldSession::HandleMoveKnockBackAck(WorldPacket& recv_data)
     WorldPacket data(MSG_MOVE_KNOCK_BACK, recv_data.size() + 15);
     data << mover->GetPackGUID();
     data << movementInfo;
-    data << movementInfo.GetJumpInfo().sinAngle;
-    data << movementInfo.GetJumpInfo().cosAngle;
-    data << movementInfo.GetJumpInfo().xyspeed;
-    data << movementInfo.GetJumpInfo().velocity;
+    data << movementInfo.GetJumpDirectionY();
+    data << movementInfo.GetJumpDirectionX();
+    data << movementInfo.GetHorizontalJumpVelocity();
+    data << movementInfo.GetVerticalJumpVelocity();
     mover->SendMessageToSetExcept(&data, _player);
 }
 

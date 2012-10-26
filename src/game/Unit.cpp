@@ -118,20 +118,20 @@ void MovementAndPositionInfo::Read(ByteBuffer& data)
     }
 
     if ((moveFlags & (MOVEFLAG_SWIMMING | MOVEFLAG_FLYING)) || (moveFlags2 & MOVEFLAG2_ALLOW_PITCHING))
-        data >> s_pitch;
+        data >> pitchAngle;
 
     data >> fallTime;
 
     if (moveFlags & MOVEFLAG_FALLING)
     {
-        data >> jump.velocity;
-        data >> jump.sinAngle;
-        data >> jump.cosAngle;
-        data >> jump.xyspeed;
+        data >> jump_verticalVelocity;
+        data >> jump_directionY;
+        data >> jump_directionX;
+        data >> jump_horizontalVelocity;
     }
 
     if (moveFlags & MOVEFLAG_SPLINE_ELEVATION)
-        data >> u_unk1;
+        data >> spline_elevation;
 }
 
 void MovementAndPositionInfo::Write(ByteBuffer& data) const
@@ -160,20 +160,20 @@ void MovementAndPositionInfo::Write(ByteBuffer& data) const
     }
 
     if ((moveFlags & (MOVEFLAG_SWIMMING | MOVEFLAG_FLYING)) || (moveFlags2 & MOVEFLAG2_ALLOW_PITCHING))
-        data << s_pitch;
+        data << pitchAngle;
 
     data << fallTime;
 
     if (moveFlags & MOVEFLAG_FALLING)
     {
-        data << jump.velocity;
-        data << jump.sinAngle;
-        data << jump.cosAngle;
-        data << jump.xyspeed;
+        data << jump_verticalVelocity;
+        data << jump_directionY;
+        data << jump_directionX;
+        data << jump_horizontalVelocity;
     }
 
     if (moveFlags & MOVEFLAG_SPLINE_ELEVATION)
-        data << u_unk1;
+        data << spline_elevation;
 }
 
 ////////////////////////////////////////////////////////////
