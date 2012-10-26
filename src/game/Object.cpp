@@ -258,10 +258,8 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
                 player->m_movementInfo.RemoveMovementFlag(MOVEFLAG_ONTRANSPORT);
         }
 
-        // Update movement info time
-        unit->m_movementInfo.UpdateTime(WorldTimer::getMSTime());
         // Write movement info
-        unit->m_movementInfo.Write(*data);
+        MovementInfo::BuildMovementAndPositionInfo(unit).Write(*data);
 
         // Unit speeds
         *data << float(unit->GetSpeed(MOVE_WALK));
@@ -959,9 +957,6 @@ void WorldObject::Relocate(float x, float y, float z, float orientation)
     m_position.y = y;
     m_position.z = z;
     m_position.o = orientation;
-
-    if (isType(TYPEMASK_UNIT))
-        ((Unit*)this)->m_movementInfo.ChangePosition(x, y, z, orientation);
 }
 
 void WorldObject::Relocate(float x, float y, float z)
@@ -969,17 +964,11 @@ void WorldObject::Relocate(float x, float y, float z)
     m_position.x = x;
     m_position.y = y;
     m_position.z = z;
-
-    if (isType(TYPEMASK_UNIT))
-        ((Unit*)this)->m_movementInfo.ChangePosition(x, y, z, GetOrientation());
 }
 
 void WorldObject::SetOrientation(float orientation)
 {
     m_position.o = orientation;
-
-    if (isType(TYPEMASK_UNIT))
-        ((Unit*)this)->m_movementInfo.ChangeOrientation(orientation);
 }
 
 uint32 WorldObject::GetZoneId() const

@@ -71,38 +71,58 @@ float baseMoveSpeed[MAX_MOVE_TYPE] =
 ////////////////////////////////////////////////////////////
 // Methods of class MovementInfo
 
-void MovementInfo::Read(ByteBuffer& data)
+MovementAndPositionInfo MovementInfo::BuildMovementAndPositionInfo(Unit const* owner)
+{
+    Position globalPosition(owner->GetPositionX(), owner->GetPositionY(), owner->GetPositionZ(), owner->GetOrientation());
+
+    ObjectGuid transportGuid = ObjectGuid();
+    Position localPosition;
+    uint8 seat = 255;
+
+    TransportInfo* transportInfo = owner->GetTransportInfo();
+
+    if (transportInfo)
+    {
+        transportGuid = transportInfo->GetTransportGuid();
+        transportInfo->GetLocalPosition(localPosition.x, localPosition.y, localPosition.z, localPosition.o);
+        seat = transportInfo->GetTransportSeat();
+    }
+
+    return MovementAndPositionInfo(owner->m_movementInfo, globalPosition, WorldTimer::getMSTime(), transportGuid,
+        localPosition, 0 /* transportTime */, seat, 0 /* transportTime2 */);
+}
+
+void MovementAndPositionInfo::Read(ByteBuffer& data)
 {
     data >> moveFlags;
     data >> moveFlags2;
     data >> time;
-    data >> pos.x;
-    data >> pos.y;
-    data >> pos.z;
-    data >> pos.o;
 
-    if (HasMovementFlag(MOVEFLAG_ONTRANSPORT))
+    data >> position.x;
+    data >> position.y;
+    data >> position.z;
+    data >> position.o;
+
+    if (moveFlags & MOVEFLAG_ONTRANSPORT)
     {
-        data >> t_guid.ReadAsPacked();
-        data >> t_pos.x;
-        data >> t_pos.y;
-        data >> t_pos.z;
-        data >> t_pos.o;
-        data >> t_time;
-        data >> t_seat;
+        data >> transportGuid.ReadAsPacked();
+        data >> localPosition.x;
+        data >> localPosition.y;
+        data >> localPosition.z;
+        data >> localPosition.o;
+        data >> transportTime;
+        data >> seat;
 
         if (moveFlags2 & MOVEFLAG2_INTERP_MOVEMENT)
-            data >> t_time2;
+            data >> transportTime2;
     }
 
-    if ((HasMovementFlag(MovementFlags(MOVEFLAG_SWIMMING | MOVEFLAG_FLYING))) || (moveFlags2 & MOVEFLAG2_ALLOW_PITCHING))
-    {
+    if ((moveFlags & (MOVEFLAG_SWIMMING | MOVEFLAG_FLYING)) || (moveFlags2 & MOVEFLAG2_ALLOW_PITCHING))
         data >> s_pitch;
-    }
 
     data >> fallTime;
 
-    if (HasMovementFlag(MOVEFLAG_FALLING))
+    if (moveFlags & MOVEFLAG_FALLING)
     {
         data >> jump.velocity;
         data >> jump.sinAngle;
@@ -110,44 +130,41 @@ void MovementInfo::Read(ByteBuffer& data)
         data >> jump.xyspeed;
     }
 
-    if (HasMovementFlag(MOVEFLAG_SPLINE_ELEVATION))
-    {
+    if (moveFlags & MOVEFLAG_SPLINE_ELEVATION)
         data >> u_unk1;
-    }
 }
 
-void MovementInfo::Write(ByteBuffer& data) const
+void MovementAndPositionInfo::Write(ByteBuffer& data) const
 {
     data << moveFlags;
     data << moveFlags2;
     data << time;
-    data << pos.x;
-    data << pos.y;
-    data << pos.z;
-    data << pos.o;
 
-    if (HasMovementFlag(MOVEFLAG_ONTRANSPORT))
+    data << position.x;
+    data << position.y;
+    data << position.z;
+    data << position.o;
+
+    if (moveFlags & MOVEFLAG_ONTRANSPORT)
     {
-        data << t_guid.WriteAsPacked();
-        data << t_pos.x;
-        data << t_pos.y;
-        data << t_pos.z;
-        data << t_pos.o;
-        data << t_time;
-        data << t_seat;
+        data << transportGuid.WriteAsPacked();
+        data << localPosition.x;
+        data << localPosition.y;
+        data << localPosition.z;
+        data << localPosition.o;
+        data << transportTime;
+        data << seat;
 
         if (moveFlags2 & MOVEFLAG2_INTERP_MOVEMENT)
-            data << t_time2;
+            data << transportTime2;
     }
 
-    if ((HasMovementFlag(MovementFlags(MOVEFLAG_SWIMMING | MOVEFLAG_FLYING))) || (moveFlags2 & MOVEFLAG2_ALLOW_PITCHING))
-    {
+    if ((moveFlags & (MOVEFLAG_SWIMMING | MOVEFLAG_FLYING)) || (moveFlags2 & MOVEFLAG2_ALLOW_PITCHING))
         data << s_pitch;
-    }
 
     data << fallTime;
 
-    if (HasMovementFlag(MOVEFLAG_FALLING))
+    if (moveFlags & MOVEFLAG_FALLING)
     {
         data << jump.velocity;
         data << jump.sinAngle;
@@ -155,10 +172,8 @@ void MovementInfo::Write(ByteBuffer& data) const
         data << jump.xyspeed;
     }
 
-    if (HasMovementFlag(MOVEFLAG_SPLINE_ELEVATION))
-    {
+    if (moveFlags & MOVEFLAG_SPLINE_ELEVATION)
         data << u_unk1;
-    }
 }
 
 ////////////////////////////////////////////////////////////
@@ -455,10 +470,9 @@ bool Unit::haveOffhandWeapon() const
 
 void Unit::SendHeartBeat()
 {
-    m_movementInfo.UpdateTime(WorldTimer::getMSTime());
     WorldPacket data(MSG_MOVE_HEARTBEAT, 64);
     data << GetPackGUID();
-    data << m_movementInfo;
+    data << MovementInfo::BuildMovementAndPositionInfo(this);
     SendMessageToSet(&data, true);
 }
 
@@ -8607,11 +8621,9 @@ void Unit::SetSpeedRate(UnitMoveType mtype, float rate, bool forced)
         }
         else
         {
-            m_movementInfo.UpdateTime(WorldTimer::getMSTime());
-
             WorldPacket data(Opcodes(SetSpeed2Opc_table[mtype][0]), 64);
             data << GetPackGUID();
-            data << m_movementInfo;
+            data << MovementInfo::BuildMovementAndPositionInfo(this);
             data << float(GetSpeed(mtype));
             SendMessageToSet(&data, true);
         }

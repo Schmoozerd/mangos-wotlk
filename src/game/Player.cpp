@@ -1677,7 +1677,6 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
     {
         m_transport->RemovePassenger(this);
         m_transport = NULL;
-        m_movementInfo.ClearTransportData();
     }
 
     // The player was ported to another map and looses the duel immediately.
@@ -1811,22 +1810,8 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             if (oldmap)
                 oldmap->Remove(this, false);
 
-            // new final coordinates
-            float final_x = x;
-            float final_y = y;
-            float final_z = z;
-            float final_o = orientation;
-
-            if (m_transport)
-            {
-                final_x += m_movementInfo.GetTransportPos()->x;
-                final_y += m_movementInfo.GetTransportPos()->y;
-                final_z += m_movementInfo.GetTransportPos()->z;
-                final_o += m_movementInfo.GetTransportPos()->o;
-            }
-
-            m_teleport_dest = WorldLocation(mapid, final_x, final_y, final_z, final_o);
-            SetFallInformation(0, final_z);
+            m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
+            SetFallInformation(0, z);
             // if the player is saved before worldport ack (at logout for example)
             // this will be used instead of the current location in SaveToDB
 
@@ -1839,19 +1824,19 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 // transfer finished, inform client to start load
                 WorldPacket data(SMSG_NEW_WORLD, (20));
                 data << uint32(mapid);
-                if (m_transport)
+                if (m_transportInfo)
                 {
-                    data << float(m_movementInfo.GetTransportPos()->x);
-                    data << float(m_movementInfo.GetTransportPos()->y);
-                    data << float(m_movementInfo.GetTransportPos()->z);
-                    data << float(m_movementInfo.GetTransportPos()->o);
+                    data << float(m_transportInfo->GetLocalPositionX());
+                    data << float(m_transportInfo->GetLocalPositionY());
+                    data << float(m_transportInfo->GetLocalPositionZ());
+                    data << float(m_transportInfo->GetLocalOrientation());
                 }
                 else
                 {
-                    data << float(final_x);
-                    data << float(final_y);
-                    data << float(final_z);
-                    data << float(final_o);
+                    data << float(x);
+                    data << float(y);
+                    data << float(z);
+                    data << float(orientation);
                 }
 
                 GetSession()->SendPacket(&data);
@@ -15732,8 +15717,6 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         RelocateToHomebind();
 
         transGUID = 0;
-
-        m_movementInfo.ClearTransportData();
     }
 
     _LoadBGData(holder->GetResult(PLAYER_LOGIN_QUERY_LOADBGDATA));
@@ -15794,21 +15777,22 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
     if (transGUID != 0)
     {
-        m_movementInfo.SetTransportData(ObjectGuid(HIGHGUID_MO_TRANSPORT, transGUID), fields[26].GetFloat(), fields[27].GetFloat(), fields[28].GetFloat(), fields[29].GetFloat(), 0, -1);
+        float lx = fields[26].GetFloat();
+        float ly = fields[27].GetFloat();
+        float lz = fields[28].GetFloat();
+        float lo = fields[29].GetFloat();
 
+        // Proper calculation not required as this is only very rough check
         if (!MaNGOS::IsValidMapCoord(
-                    GetPositionX() + m_movementInfo.GetTransportPos()->x, GetPositionY() + m_movementInfo.GetTransportPos()->y,
-                    GetPositionZ() + m_movementInfo.GetTransportPos()->z, GetOrientation() + m_movementInfo.GetTransportPos()->o) ||
+                    GetPositionX() + lx, GetPositionY() + ly,
+                    GetPositionZ() + lz, GetOrientation() + lo) ||
                 // transport size limited
-                m_movementInfo.GetTransportPos()->x > 50 || m_movementInfo.GetTransportPos()->y > 50 || m_movementInfo.GetTransportPos()->z > 50)
+                lx > 50 || ly > 50 || lz > 50)
         {
             sLog.outError("%s have invalid transport coordinates (X: %f Y: %f Z: %f O: %f). Teleport to default race/class locations.",
-                          guid.GetString().c_str(), GetPositionX() + m_movementInfo.GetTransportPos()->x, GetPositionY() + m_movementInfo.GetTransportPos()->y,
-                          GetPositionZ() + m_movementInfo.GetTransportPos()->z, GetOrientation() + m_movementInfo.GetTransportPos()->o);
+                          guid.GetString().c_str(), lx, ly, lz, lo);
 
             RelocateToHomebind();
-
-            m_movementInfo.ClearTransportData();
 
             transGUID = 0;
         }
@@ -15841,8 +15825,6 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
                           guid.GetString().c_str(), transGUID);
 
             RelocateToHomebind();
-
-            m_movementInfo.ClearTransportData();
 
             transGUID = 0;
         }
@@ -17476,14 +17458,22 @@ void Player::SaveToDB()
     uberInsert.addUInt32(m_resetTalentsCost);
     uberInsert.addUInt64(uint64(m_resetTalentsTime));
 
-    uberInsert.addFloat(finiteAlways(m_movementInfo.GetTransportPos()->x));
-    uberInsert.addFloat(finiteAlways(m_movementInfo.GetTransportPos()->y));
-    uberInsert.addFloat(finiteAlways(m_movementInfo.GetTransportPos()->z));
-    uberInsert.addFloat(finiteAlways(m_movementInfo.GetTransportPos()->o));
-    if (m_transport)
-        uberInsert.addUInt32(m_transport->GetGUIDLow());
-    else
+    if (m_transportInfo)
+    {
+        uberInsert.addFloat(finiteAlways(m_transportInfo->GetLocalPositionX()));
+        uberInsert.addFloat(finiteAlways(m_transportInfo->GetLocalPositionY()));
+        uberInsert.addFloat(finiteAlways(m_transportInfo->GetLocalPositionZ()));
+        uberInsert.addFloat(finiteAlways(m_transportInfo->GetLocalOrientation()));
+        uberInsert.addUInt32(m_transportInfo->GetTransport()->GetGUIDLow());
+    }
+     else
+    {
+        uberInsert.addFloat(0.0f);
+        uberInsert.addFloat(0.0f);
+        uberInsert.addFloat(0.0f);
+        uberInsert.addFloat(0.0f);
         uberInsert.addUInt32(0);
+    }
 
     uberInsert.addUInt32(m_ExtraFlags);
 
@@ -22168,10 +22158,10 @@ InventoryResult Player::CanEquipUniqueItem(ItemPrototype const* itemProto, uint8
     return EQUIP_ERR_OK;
 }
 
-void Player::HandleFall(MovementInfo const& movementInfo)
+void Player::HandleFall(MovementAndPositionInfo const& movementInfo)
 {
     // calculate total z distance of the fall
-    float z_diff = m_lastFallZ - movementInfo.GetPos()->z;
+    float z_diff = m_lastFallZ - movementInfo.GetPositionZ();
     DEBUG_LOG("zDiff = %f", z_diff);
 
     // Players with low fall distance, Feather Fall or physical immunity (charges used) are ignored
@@ -22189,8 +22179,8 @@ void Player::HandleFall(MovementInfo const& movementInfo)
         {
             uint32 damage = (uint32)(damageperc * GetMaxHealth() * sWorld.getConfig(CONFIG_FLOAT_RATE_DAMAGE_FALL));
 
-            float height = movementInfo.GetPos()->z;
-            UpdateAllowedPositionZ(movementInfo.GetPos()->x, movementInfo.GetPos()->y, height);
+            float height = movementInfo.GetPositionZ();
+            UpdateAllowedPositionZ(movementInfo.GetPositionX(), movementInfo.GetPositionY(), height);
 
             if (damage > 0)
             {
@@ -22211,7 +22201,7 @@ void Player::HandleFall(MovementInfo const& movementInfo)
             }
 
             // Z given by moveinfo, LastZ, FallTime, WaterZ, MapZ, Damage, Safefall reduction
-            DEBUG_LOG("FALLDAMAGE z=%f sz=%f pZ=%f FallTime=%d mZ=%f damage=%d SF=%d" , movementInfo.GetPos()->z, height, GetPositionZ(), movementInfo.GetFallTime(), height, damage, safe_fall);
+            DEBUG_LOG("FALLDAMAGE z=%f sz=%f pZ=%f FallTime=%d mZ=%f damage=%d SF=%d" , movementInfo.GetPositionZ(), height, GetPositionZ(), movementInfo.GetFallTime(), height, damage, safe_fall);
         }
     }
 }
@@ -22473,10 +22463,10 @@ void Player::UpdateKnownCurrencies(uint32 itemId, bool apply)
     }
 }
 
-void Player::UpdateFallInformationIfNeed(MovementInfo const& minfo, uint16 opcode)
+void Player::UpdateFallInformationIfNeed(MovementAndPositionInfo const& minfo, uint16 opcode)
 {
-    if (m_lastFallTime >= minfo.GetFallTime() || m_lastFallZ <= minfo.GetPos()->z || opcode == MSG_MOVE_FALL_LAND)
-        SetFallInformation(minfo.GetFallTime(), minfo.GetPos()->z);
+    if (m_lastFallTime >= minfo.GetFallTime() || m_lastFallZ <= minfo.GetPositionZ() || opcode == MSG_MOVE_FALL_LAND)
+        SetFallInformation(minfo.GetFallTime(), minfo.GetPositionZ());
 }
 
 void Player::UnsummonPetTemporaryIfAny()
@@ -23073,13 +23063,13 @@ void Player::SendClearCooldown(uint32 spell_id, Unit* target)
 
 void Player::BuildTeleportAckMsg(WorldPacket& data, float x, float y, float z, float ang) const
 {
-    MovementInfo mi = m_movementInfo;
-    mi.ChangePosition(x, y, z, ang);
+    MovementAndPositionInfo movementInfo = MovementInfo::BuildMovementAndPositionInfo(this);
+    movementInfo.SetPosition(x, y, z, ang);
 
     data.Initialize(MSG_MOVE_TELEPORT_ACK, 64);
     data << GetPackGUID();
     data << uint32(0);                                      // this value increments every time
-    data << mi;
+    data << movementInfo;
 }
 
 bool Player::HasMovementFlag(MovementFlags f) const

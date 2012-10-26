@@ -196,7 +196,7 @@ void WorldSession::HandleMoveSplineDoneOpcode(WorldPacket& recv_data)
     DEBUG_LOG("WORLD: Received opcode CMSG_MOVE_SPLINE_DONE");
 
     ObjectGuid guid;                                        // used only for proper packet read
-    MovementInfo movementInfo;                              // used only for proper packet read
+    MovementAndPositionInfo movementInfo;                   // used only for proper packet read
 
     recv_data >> guid.ReadAsPacked();
     recv_data >> movementInfo;

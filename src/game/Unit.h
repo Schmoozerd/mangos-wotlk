@@ -679,51 +679,21 @@ enum MovementFlags2
 class MovementInfo
 {
     public:
-        MovementInfo() : moveFlags(MOVEFLAG_NONE), moveFlags2(MOVEFLAG2_NONE), time(0),
-            t_time(0), t_seat(-1), t_time2(0), s_pitch(0.0f), fallTime(0), u_unk1(0.0f) {}
+        MovementInfo() : moveFlags(MOVEFLAG_NONE), moveFlags2(MOVEFLAG2_NONE),
+            s_pitch(0.0f), fallTime(0), u_unk1(0.0f) {}
 
-        // Read/Write methods
-        void Read(ByteBuffer& data);
-        void Write(ByteBuffer& data) const;
+        static MovementAndPositionInfo BuildMovementAndPositionInfo(Unit const* owner);
 
         // Movement flags manipulations
         void AddMovementFlag(MovementFlags f) { moveFlags |= f; }
         void RemoveMovementFlag(MovementFlags f) { moveFlags &= ~f; }
-        bool HasMovementFlag(MovementFlags f) const { return moveFlags & f; }
-        MovementFlags GetMovementFlags() const { return MovementFlags(moveFlags); }
-        void SetMovementFlags(MovementFlags f) { moveFlags = f; }
-        MovementFlags2 GetMovementFlags2() const { return MovementFlags2(moveFlags2); }
 
-        // Position manipulations
-        Position const* GetPos() const { return &pos; }
-        void SetTransportData(ObjectGuid guid, float x, float y, float z, float o, uint32 time, int8 seat)
-        {
-            t_guid = guid;
-            t_pos.x = x;
-            t_pos.y = y;
-            t_pos.z = z;
-            t_pos.o = o;
-            t_time = time;
-            t_seat = seat;
-        }
-        void ClearTransportData()
-        {
-            t_guid = ObjectGuid();
-            t_pos.x = 0.0f;
-            t_pos.y = 0.0f;
-            t_pos.z = 0.0f;
-            t_pos.o = 0.0f;
-            t_time = 0;
-            t_seat = -1;
-        }
-        ObjectGuid const& GetTransportGuid() const { return t_guid; }
-        Position const* GetTransportPos() const { return &t_pos; }
-        int8 GetTransportSeat() const { return t_seat; }
-        uint32 GetTransportTime() const { return t_time; }
+        void SetMovementFlags(MovementFlags f) { moveFlags = f; }
+        bool HasMovementFlag(MovementFlags f) const { return moveFlags & f; }
+
+        MovementFlags GetMovementFlags() const { return MovementFlags(moveFlags); }
+        MovementFlags2 GetMovementFlags2() const { return MovementFlags2(moveFlags2); }
         uint32 GetFallTime() const { return fallTime; }
-        void ChangeOrientation(float o) { pos.o = o; }
-        void ChangePosition(float x, float y, float z, float o) { pos.x = x; pos.y = y; pos.z = z; pos.o = o; }
-        void UpdateTime(uint32 _time) { time = _time; }
 
         struct JumpInfo
         {
@@ -732,18 +702,10 @@ class MovementInfo
         };
 
         JumpInfo const& GetJumpInfo() const { return jump; }
-    private:
+    protected:
         // common
         uint32   moveFlags;                                 // see enum MovementFlags
         uint16   moveFlags2;                                // see enum MovementFlags2
-        uint32   time;
-        Position pos;
-        // transport
-        ObjectGuid t_guid;
-        Position t_pos;
-        uint32   t_time;
-        int8     t_seat;
-        uint32   t_time2;
         // swimming and flying
         float    s_pitch;
         // last fall time
@@ -754,13 +716,58 @@ class MovementInfo
         float    u_unk1;
 };
 
-inline ByteBuffer& operator<< (ByteBuffer& buf, MovementInfo const& mi)
+class MovementAndPositionInfo : public MovementInfo
+{
+    public:
+        MovementAndPositionInfo() {}
+        MovementAndPositionInfo(MovementInfo movementInfo, Position _position, uint32 _time, ObjectGuid _transportGuid,
+                Position _localPosition, uint32 _transportTime, uint8 _seat, uint32 _transportTime2) : MovementInfo(movementInfo),
+                position(_position), time(_time), transportGuid(_transportGuid), localPosition(_localPosition),
+                transportTime(_transportTime), seat(_seat), transportTime2(_transportTime2) {}
+
+        // Read / Write methods
+        void Read(ByteBuffer& data);
+        void Write(ByteBuffer& data) const;
+
+        void SetPosition(float x, float y, float z, float o)
+        {
+            position.x = x;
+            position.y = y;
+            position.z = z;
+            position.o = o;
+        }
+
+        void SetTime(uint32 _time) { time = _time; }
+
+        float GetOrientation() const { return position.o; }
+        float GetPositionX() const { return position.x; }
+        float GetPositionY() const { return position.y; }
+        float GetPositionZ() const { return position.z; }
+
+        ObjectGuid GetTransportGuid() { return transportGuid; }
+
+        float GetLocalOrientation() const { return localPosition.o; }
+        float GetLocalPositionX() const { return localPosition.x; }
+        float GetLocalPositionY() const { return localPosition.y; }
+        float GetLocalPositionZ() const { return localPosition.z; }
+
+    private:
+        Position position;
+        uint32 time;
+        ObjectGuid transportGuid;
+        Position localPosition;
+        uint32 transportTime;
+        uint8 seat;
+        uint32 transportTime2;
+};
+
+inline ByteBuffer& operator<< (ByteBuffer& buf, MovementAndPositionInfo const& mi)
 {
     mi.Write(buf);
     return buf;
 }
 
-inline ByteBuffer& operator>> (ByteBuffer& buf, MovementInfo& mi)
+inline ByteBuffer& operator>> (ByteBuffer& buf, MovementAndPositionInfo& mi)
 {
     mi.Read(buf);
     return buf;

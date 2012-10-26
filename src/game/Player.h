@@ -2150,13 +2150,13 @@ class MANGOS_DLL_SPEC Player : public Unit
         /***                 VARIOUS SYSTEMS                   ***/
         /*********************************************************/
         bool HasMovementFlag(MovementFlags f) const;        // for script access to m_movementInfo.HasMovementFlag
-        void UpdateFallInformationIfNeed(MovementInfo const& minfo, uint16 opcode);
+        void UpdateFallInformationIfNeed(MovementAndPositionInfo const& minfo, uint16 opcode);
         void SetFallInformation(uint32 time, float z)
         {
             m_lastFallTime = time;
             m_lastFallZ = z;
         }
-        void HandleFall(MovementInfo const& movementInfo);
+        void HandleFall(MovementAndPositionInfo const& movementInfo);
 
         void BuildTeleportAckMsg(WorldPacket& data, float x, float y, float z, float ang) const;
 
@@ -2178,13 +2178,6 @@ class MANGOS_DLL_SPEC Player : public Unit
         // Transports
         Transport* GetTransport() const { return m_transport; }
         void SetTransport(Transport* t) { m_transport = t; }
-
-        float GetTransOffsetX() const { return m_movementInfo.GetTransportPos()->x; }
-        float GetTransOffsetY() const { return m_movementInfo.GetTransportPos()->y; }
-        float GetTransOffsetZ() const { return m_movementInfo.GetTransportPos()->z; }
-        float GetTransOffsetO() const { return m_movementInfo.GetTransportPos()->o; }
-        uint32 GetTransTime() const { return m_movementInfo.GetTransportTime(); }
-        int8 GetTransSeat() const { return m_movementInfo.GetTransportSeat(); }
 
         uint32 GetSaveTimer() const { return m_nextSave; }
         void   SetSaveTimer(uint32 timer) { m_nextSave = timer; }

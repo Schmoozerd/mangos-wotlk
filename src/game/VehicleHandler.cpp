@@ -32,7 +32,7 @@ void WorldSession::HandleDismissControlledVehicle(WorldPacket& recvPacket)
     recvPacket.hexlike();
 
     ObjectGuid vehicleGuid;
-    MovementInfo movementInfo;                              // Not used at the moment
+    MovementAndPositionInfo movementInfo;                    // Not used at the moment
 
     recvPacket >> vehicleGuid.ReadAsPacked();
     recvPacket >> movementInfo;
@@ -93,7 +93,7 @@ void WorldSession::HandleChangeSeatsOnControlledVehicle(WorldPacket& recvPacket)
     recvPacket.hexlike();
 
     ObjectGuid srcVehicleGuid;
-    MovementInfo movementInfo;
+    MovementAndPositionInfo movementInfo;
     ObjectGuid destVehicleGuid;
     uint8 seat;
 
