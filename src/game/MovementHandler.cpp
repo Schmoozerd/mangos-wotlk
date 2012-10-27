@@ -542,27 +542,50 @@ void WorldSession::HandleMoverRelocation(MovementAndPositionInfo& movementInfo)
 
     if (Player* plMover = mover->GetTypeId() == TYPEID_PLAYER ? (Player*)mover : NULL)
     {
-        if (movementInfo.HasMovementFlag(MOVEFLAG_ONTRANSPORT))
+        if (!plMover->IsBoarded())
         {
-            if (!plMover->m_transport)
+            // Client set MOVEFLAG_ONTRANSPORT -> Board passenger here as well
+            if (movementInfo.HasMovementFlag(MOVEFLAG_ONTRANSPORT))
             {
-                // elevators also cause the client to send MOVEFLAG_ONTRANSPORT - just unmount if the guid can be found in the transport list
                 for (MapManager::TransportSet::const_iterator iter = sMapMgr.m_Transports.begin(); iter != sMapMgr.m_Transports.end(); ++iter)
                 {
-                    if ((*iter)->GetObjectGuid() == movementInfo.GetTransportGuid())
-                    {
-                        plMover->m_transport = (*iter);
-                        (*iter)->AddPassenger(plMover);
-                        break;
-                    }
+                    if ((*iter)->GetObjectGuid() != movementInfo.GetTransportGuid())
+                        continue;
+
+                    /** It's considered that player and transport running in same thread context,
+                        so it's safe to modify transport(add passenger) */
+                    (*iter)->BoardPassenger(plMover, movementInfo.GetLocalPositionX(), movementInfo.GetLocalPositionY(),
+                                movementInfo.GetLocalPositionZ(), movementInfo.GetLocalOrientation());
+
+                    // ToDo: Remove following hack
+                    plMover->m_transport = (*iter);
+                    break;
                 }
             }
         }
-        else if (plMover->m_transport)               // if we were on a transport, leave
+        else if (TransportInfo* transportInfo = plMover->GetTransportInfo())
         {
-            plMover->m_transport->RemovePassenger(plMover);
-            plMover->m_transport = NULL;
+            // Client removed MOVEFLAG_ONTRANSPORT -> Unboard passenger here as well
+            if (!movementInfo.HasMovementFlag(MOVEFLAG_ONTRANSPORT))
+            {
+                // if we were on a mo transport, leave
+                if (transportInfo->IsOnMOTransport())
+                {
+                    ((Transport*)transportInfo->GetTransport())->UnBoardPassenger(plMover);
+
+                    // ToDo: Remove following hack
+                    plMover->m_transport = NULL;
+                }
+            }
+            else // Update local position
+                transportInfo->SetLocalPosition(movementInfo.GetLocalPositionX(), movementInfo.GetLocalPositionY(),
+                    movementInfo.GetLocalPositionZ(), movementInfo.GetLocalOrientation());
         }
+
+        /* Global positions of passengers are calculated by the specific transporter,
+           so set the received global position only if the unit is not boarded */
+        if (!plMover->IsBoarded())
+            plMover->SetPosition(movementInfo.GetPositionX(), movementInfo.GetPositionY(), movementInfo.GetPositionZ(), movementInfo.GetOrientation());
 
         if (movementInfo.HasMovementFlag(MOVEFLAG_SWIMMING) != plMover->IsInWater())
         {
@@ -570,7 +593,6 @@ void WorldSession::HandleMoverRelocation(MovementAndPositionInfo& movementInfo)
             plMover->SetInWater(!plMover->IsInWater() || plMover->GetTerrain()->IsUnderWater(movementInfo.GetPositionX(), movementInfo.GetPositionY(), movementInfo.GetPositionZ()));
         }
 
-        plMover->SetPosition(movementInfo.GetPositionX(), movementInfo.GetPositionY(), movementInfo.GetPositionZ(), movementInfo.GetOrientation());
         plMover->m_movementInfo = movementInfo;
 
         if (movementInfo.GetPositionZ() < -500.0f)

@@ -20,6 +20,7 @@
 #define TRANSPORTS_H
 
 #include "GameObject.h"
+#include "TransportSystem.h"
 
 #include <map>
 #include <set>
@@ -29,15 +30,16 @@ class Transport : public GameObject
 {
     public:
         explicit Transport();
+        ~Transport();
 
         bool Create(uint32 guidlow, uint32 mapid, float x, float y, float z, float ang, uint8 animprogress, uint16 dynamicHighValue);
         bool GenerateWaypoints(uint32 pathid, std::set<uint32>& mapids);
         void Update(uint32 update_diff, uint32 p_time) override;
-        bool AddPassenger(Player* passenger);
-        bool RemovePassenger(Player* passenger);
 
-        typedef std::set<Player*> PlayerSet;
-        PlayerSet const& GetPassengers() const { return m_passengers; }
+        bool BoardPassenger(WorldObject* passenger, float lx, float ly, float lz, float lo);
+        bool UnBoardPassenger(WorldObject* passenger);
+
+        PassengerMap const& GetPassengers() const { return m_transportBase->GetPassengers(); }
 
     private:
         struct WayPoint
@@ -65,14 +67,14 @@ class Transport : public GameObject
         uint32 m_pathTime;
         uint32 m_timer;
 
-        PlayerSet m_passengers;
-
     public:
         WayPointMap m_WayPoints;
         uint32 m_nextNodeTime;
         uint32 m_period;
 
     private:
+        TransportBase* m_transportBase;
+
         void TeleportTransport(uint32 newMapid, float x, float y, float z);
         void UpdateForMap(Map const* map);
         void DoEventIfAny(WayPointMap::value_type const& node, bool departure);

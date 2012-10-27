@@ -26,6 +26,7 @@
 #include "ObjectAccessor.h"
 #include "BattleGround/BattleGroundMgr.h"
 #include "CreatureAI.h"
+#include "Player.h"
 
 using namespace MaNGOS;
 
@@ -44,14 +45,15 @@ void VisibleNotifier::Notify()
     // but exist one case when this possible and object not out of range: transports
     if (Transport* transport = player.GetTransport())
     {
-        for (Transport::PlayerSet::const_iterator itr = transport->GetPassengers().begin(); itr != transport->GetPassengers().end(); ++itr)
+        for (PassengerMap::const_iterator itr = transport->GetPassengers().begin(); itr != transport->GetPassengers().end(); ++itr)
         {
-            if (i_clientGUIDs.find((*itr)->GetObjectGuid()) != i_clientGUIDs.end())
+            if (i_clientGUIDs.find(itr->first->GetObjectGuid()) != i_clientGUIDs.end())
             {
                 // ignore far sight case
-                (*itr)->UpdateVisibilityOf(*itr, &player);
-                player.UpdateVisibilityOf(&player, *itr, i_data, i_visibleNow);
-                i_clientGUIDs.erase((*itr)->GetObjectGuid());
+                if (itr->first->GetTypeId() == TYPEID_PLAYER)
+                    ((Player*)itr->first)->UpdateVisibilityOf(itr->first, &player);
+                player.UpdateVisibilityOf(&player, itr->first, i_data, i_visibleNow);
+                i_clientGUIDs.erase(itr->first->GetObjectGuid());
             }
         }
     }

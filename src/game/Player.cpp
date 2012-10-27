@@ -587,10 +587,9 @@ Player::~Player()
 
     delete PlayerTalkClass;
 
-    if (m_transport)
-    {
-        m_transport->RemovePassenger(this);
-    }
+    // Unboard passenger
+    if (m_transportInfo && m_transportInfo->IsOnMOTransport())
+        ((Transport*)m_transportInfo->GetTransport())->UnBoardPassenger(this);
 
     for (size_t x = 0; x < ItemSetEff.size(); ++x)
         delete ItemSetEff[x];
@@ -1673,9 +1672,11 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         grp->SetPlayerMap(GetObjectGuid(), mapid);
 
     // if we were on a transport, leave
-    if (!(options & TELE_TO_NOT_LEAVE_TRANSPORT) && m_transport)
+    if (m_transportInfo && m_transportInfo->IsOnMOTransport() && !(options & TELE_TO_NOT_LEAVE_TRANSPORT))
     {
-        m_transport->RemovePassenger(this);
+        ((Transport*)m_transportInfo->GetTransport())->UnBoardPassenger(this);
+
+        // ToDo: Remove following hack
         m_transport = NULL;
     }
 
@@ -15782,51 +15783,34 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         float lz = fields[28].GetFloat();
         float lo = fields[29].GetFloat();
 
-        // Proper calculation not required as this is only very rough check
-        if (!MaNGOS::IsValidMapCoord(
-                    GetPositionX() + lx, GetPositionY() + ly,
-                    GetPositionZ() + lz, GetOrientation() + lo) ||
-                // transport size limited
-                lx > 50 || ly > 50 || lz > 50)
-        {
-            sLog.outError("%s have invalid transport coordinates (X: %f Y: %f Z: %f O: %f). Teleport to default race/class locations.",
-                          guid.GetString().c_str(), lx, ly, lz, lo);
-
-            RelocateToHomebind();
-
-            transGUID = 0;
-        }
-    }
-
-    if (transGUID != 0)
-    {
         for (MapManager::TransportSet::const_iterator iter = sMapMgr.m_Transports.begin(); iter != sMapMgr.m_Transports.end(); ++iter)
         {
-            if ((*iter)->GetGUIDLow() == transGUID)
-            {
-                MapEntry const* transMapEntry = sMapStore.LookupEntry((*iter)->GetMapId());
-                // client without expansion support
-                if (GetSession()->Expansion() < transMapEntry->Expansion())
-                {
-                    DEBUG_LOG("Player %s using client without required expansion tried login at transport at non accessible map %u", GetName(), (*iter)->GetMapId());
-                    break;
-                }
+            if ((*iter)->GetGUIDLow() != transGUID)
+                continue;
 
-                m_transport = *iter;
-                m_transport->AddPassenger(this);
-                SetLocationMapId(m_transport->GetMapId());
-                break;
+            MapEntry const* transMapEntry = sMapStore.LookupEntry((*iter)->GetMapId());
+            // client without expansion support
+            if (GetSession()->Expansion() < transMapEntry->Expansion())
+            {
+                DEBUG_LOG("Player %s using client without required expansion tried login at transport at non accessible map %u. Teleport to default race/class locations.", GetName(), (*iter)->GetMapId());
             }
+            else if ((*iter)->BoardPassenger(this, lx, ly, lz, lo))
+            {
+                SetLocationMapId((*iter)->GetMapId());
+            }
+
+            // ToDo: Remove following hack
+            m_transport = (*iter);
+
+            break;
         }
 
-        if (!m_transport)
+        if (!IsBoarded())
         {
             sLog.outError("%s have problems with transport guid (%u). Teleport to default race/class locations.",
                           guid.GetString().c_str(), transGUID);
 
             RelocateToHomebind();
-
-            transGUID = 0;
         }
     }
     else                                                    // not transport case
@@ -20184,6 +20168,7 @@ void Player::UpdateVisibilityOf(WorldObject const* viewPoint, T* target, UpdateD
 template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Player*        target, UpdateData& data, std::set<WorldObject*>& visibleNow);
 template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Creature*      target, UpdateData& data, std::set<WorldObject*>& visibleNow);
 template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, Corpse*        target, UpdateData& data, std::set<WorldObject*>& visibleNow);
+template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, WorldObject*   target, UpdateData& data, std::set<WorldObject*>& visibleNow);
 template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, GameObject*    target, UpdateData& data, std::set<WorldObject*>& visibleNow);
 template void Player::UpdateVisibilityOf(WorldObject const* viewPoint, DynamicObject* target, UpdateData& data, std::set<WorldObject*>& visibleNow);
 
