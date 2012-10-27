@@ -248,16 +248,6 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
     {
         Unit* unit = ((Unit*)this);
 
-        // ToDo: Remove this hack
-        if (GetTypeId() == TYPEID_PLAYER)
-        {
-            Player* player = ((Player*)unit);
-            if (player->GetTransport() || player->IsBoarded())
-                player->m_movementInfo.AddMovementFlag(MOVEFLAG_ONTRANSPORT);
-            else
-                player->m_movementInfo.RemoveMovementFlag(MOVEFLAG_ONTRANSPORT);
-        }
-
         // Write movement info
         MovementInfo::BuildMovementAndPositionInfo(unit).Write(*data);
 
