@@ -31,6 +31,7 @@
 #include "WaypointMovementGenerator.h"
 #include "MapPersistentStateMgr.h"
 #include "ObjectMgr.h"
+#include "TransportMgr.h"
 
 void WorldSession::HandleMoveWorldportAckOpcode(WorldPacket& /*recv_data*/)
 {
@@ -547,7 +548,7 @@ void WorldSession::HandleMoverRelocation(MovementAndPositionInfo& movementInfo)
             // Client set MOVEFLAG_ONTRANSPORT -> Board passenger here as well
             if (movementInfo.HasMovementFlag(MOVEFLAG_ONTRANSPORT))
             {
-                for (MapManager::TransportSet::const_iterator iter = sMapMgr.m_Transports.begin(); iter != sMapMgr.m_Transports.end(); ++iter)
+                for (TransportSet::const_iterator iter = sTransportMgr.GetTransports().begin(); iter != sTransportMgr.GetTransports().end(); ++iter)
                 {
                     if ((*iter)->GetObjectGuid() != movementInfo.GetTransportGuid())
                         continue;

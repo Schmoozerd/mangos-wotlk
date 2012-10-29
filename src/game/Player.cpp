@@ -65,6 +65,7 @@
 #include "DBCStores.h"
 #include "SQLStorages.h"
 #include "Vehicle.h"
+#include "TransportMgr.h"
 
 #include <cmath>
 
@@ -15783,7 +15784,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
         float lz = fields[28].GetFloat();
         float lo = fields[29].GetFloat();
 
-        for (MapManager::TransportSet::const_iterator iter = sMapMgr.m_Transports.begin(); iter != sMapMgr.m_Transports.end(); ++iter)
+        for (TransportSet::const_iterator iter = sTransportMgr.GetTransports().begin(); iter != sTransportMgr.GetTransports().end(); ++iter)
         {
             if ((*iter)->GetGUIDLow() != transGUID)
                 continue;

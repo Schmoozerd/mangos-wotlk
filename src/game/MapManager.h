@@ -131,14 +131,6 @@ class MANGOS_DLL_DECL MapManager : public MaNGOS::Singleton<MapManager, MaNGOS::
 
         void RemoveAllObjectsInRemoveList();
 
-        void LoadTransports();
-
-        typedef std::set<Transport*> TransportSet;
-        TransportSet m_Transports;
-
-        typedef std::map<uint32, TransportSet> TransportMap;
-        TransportMap m_TransportsByMap;
-
         void InitializeVisibilityDistanceInfo();
 
         /* statistics */

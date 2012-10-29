@@ -37,6 +37,7 @@
 #include "VMapFactory.h"
 #include "MoveMap.h"
 #include "BattleGround/BattleGroundMgr.h"
+#include "TransportMgr.h"
 
 Map::~Map()
 {
@@ -917,20 +918,12 @@ void Map::SendInitSelf(Player* player)
     player->GetSession()->SendPacket(&packet);
 }
 
+// Hack to send out transports
 void Map::SendInitTransports(Player* player)
 {
-    // Hack to send out transports
-    MapManager::TransportMap& tmap = sMapMgr.m_TransportsByMap;
-
-    // no transports at map
-    if (tmap.find(player->GetMapId()) == tmap.end())
-        return;
-
     UpdateData transData;
 
-    MapManager::TransportSet& tset = tmap[player->GetMapId()];
-
-    for (MapManager::TransportSet::const_iterator i = tset.begin(); i != tset.end(); ++i)
+    for (TransportSet::const_iterator i = sTransportMgr.GetTransports().begin(); i != sTransportMgr.GetTransports().end(); ++i)
     {
         // send data for current transport in other place
         if ((*i) != player->GetTransport() && (*i)->GetMapId() == i_id)
@@ -944,21 +937,13 @@ void Map::SendInitTransports(Player* player)
     player->GetSession()->SendPacket(&packet);
 }
 
+// Hack to send out transports
 void Map::SendRemoveTransports(Player* player)
 {
-    // Hack to send out transports
-    MapManager::TransportMap& tmap = sMapMgr.m_TransportsByMap;
-
-    // no transports at map
-    if (tmap.find(player->GetMapId()) == tmap.end())
-        return;
-
     UpdateData transData;
 
-    MapManager::TransportSet& tset = tmap[player->GetMapId()];
-
     // except used transport
-    for (MapManager::TransportSet::const_iterator i = tset.begin(); i != tset.end(); ++i)
+    for (TransportSet::const_iterator i = sTransportMgr.GetTransports().begin(); i != sTransportMgr.GetTransports().end(); ++i)
         if ((*i) != player->GetTransport() && (*i)->GetMapId() != i_id)
             (*i)->BuildOutOfRangeUpdateBlock(&transData);
 
