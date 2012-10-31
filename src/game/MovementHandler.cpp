@@ -351,7 +351,7 @@ void WorldSession::HandleForceSpeedChangeAckOpcodes(WorldPacket& recv_data)
             return;
     }
 
-    if (!_player->GetTransport() && fabs(_player->GetSpeed(move_type) - newspeed) > 0.01f)
+    if (!_player->IsBoarded() && fabs(_player->GetSpeed(move_type) - newspeed) > 0.01f)
     {
         if (_player->GetSpeed(move_type) > newspeed)        // must be greater - just correct
         {
@@ -558,8 +558,6 @@ void WorldSession::HandleMoverRelocation(MovementAndPositionInfo& movementInfo)
                     (*iter)->BoardPassenger(plMover, movementInfo.GetLocalPositionX(), movementInfo.GetLocalPositionY(),
                                 movementInfo.GetLocalPositionZ(), movementInfo.GetLocalOrientation());
 
-                    // ToDo: Remove following hack
-                    plMover->m_transport = (*iter);
                     break;
                 }
             }
@@ -571,12 +569,7 @@ void WorldSession::HandleMoverRelocation(MovementAndPositionInfo& movementInfo)
             {
                 // if we were on a mo transport, leave
                 if (transportInfo->IsOnMOTransport())
-                {
                     ((Transport*)transportInfo->GetTransport())->UnBoardPassenger(plMover);
-
-                    // ToDo: Remove following hack
-                    plMover->m_transport = NULL;
-                }
             }
             else // Update local position
                 transportInfo->SetLocalPosition(movementInfo.GetLocalPositionX(), movementInfo.GetLocalPositionY(),

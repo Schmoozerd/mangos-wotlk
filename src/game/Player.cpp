@@ -382,8 +382,6 @@ UpdateMask Player::updateVisualBits;
 
 Player::Player(WorldSession* session): Unit(), m_mover(this), m_camera(this), m_achievementMgr(this), m_reputationMgr(this)
 {
-    m_transport = 0;
-
     m_speakTime = 0;
     m_speakCount = 0;
 
@@ -1661,7 +1659,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             // TODO - Assume a player with expansion 0 travels from BootyBay to Ratched, and he is attempted to be teleported to outlands
             //        then he will repop near BootyBay instead of normally continuing his journey
             // This code is probably added to catch passengers on ships to northrend who shouldn't go there
-            if (lockStatus == AREA_LOCKSTATUS_INSUFFICIENT_EXPANSION && !assignedAreaTrigger && GetTransport())
+            if (lockStatus == AREA_LOCKSTATUS_INSUFFICIENT_EXPANSION && !assignedAreaTrigger && IsBoarded())
                 RepopAtGraveyard();                         // Teleport to near graveyard if on transport, looks blizz like :)
 
             SendTransferAbortedByLockStatus(mEntry, lockStatus, miscRequirement);
@@ -1674,12 +1672,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
 
     // if we were on a transport, leave
     if (m_transportInfo && m_transportInfo->IsOnMOTransport() && !(options & TELE_TO_NOT_LEAVE_TRANSPORT))
-    {
         ((Transport*)m_transportInfo->GetTransport())->UnBoardPassenger(this);
-
-        // ToDo: Remove following hack
-        m_transport = NULL;
-    }
 
     // The player was ported to another map and looses the duel immediately.
     // We have to perform this check before the teleport, otherwise the
@@ -1692,7 +1685,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
     m_movementInfo.SetMovementFlags(MOVEFLAG_NONE);
     DisableSpline();
 
-    if ((GetMapId() == mapid) && (!m_transport))            // TODO the !m_transport might have unexpected effects when teleporting from transport to other place on same map
+    if ((GetMapId() == mapid) && (!IsBoarded()))            // TODO the !IsBoarded() might have unexpected effects when teleporting from transport to other place on same map
     {
         // lets reset far teleport flag if it wasn't reset during chained teleports
         SetSemaphoreTeleportFar(false);
@@ -1800,9 +1793,9 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 // send transfer packet to display load screen
                 WorldPacket data(SMSG_TRANSFER_PENDING, (4 + 4 + 4));
                 data << uint32(mapid);
-                if (m_transport)
+                if (m_transportInfo)
                 {
-                    data << uint32(m_transport->GetEntry());
+                    data << uint32(m_transportInfo->GetTransport()->GetEntry());
                     data << uint32(GetMapId());
                 }
                 GetSession()->SendPacket(&data);
@@ -4793,7 +4786,7 @@ void Player::RepopAtGraveyard()
     AreaTableEntry const* zone = GetAreaEntryByAreaID(GetAreaId());
 
     // Such zones are considered unreachable as a ghost and the player must be automatically revived
-    if ((!isAlive() && zone && zone->flags & AREA_FLAG_NEED_FLY) || GetTransport())
+    if ((!isAlive() && zone && zone->flags & AREA_FLAG_NEED_FLY) || IsBoarded())
     {
         ResurrectPlayer(0.5f);
         SpawnCorpseBones();
@@ -15800,9 +15793,6 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
                 SetLocationMapId((*iter)->GetMapId());
             }
 
-            // ToDo: Remove following hack
-            m_transport = (*iter);
-
             break;
         }
 
@@ -21535,7 +21525,7 @@ void Player::UpdateUnderwaterState(Map* m, float x, float y, float z)
     }
 
     // Allow travel in dark water on taxi or transport
-    if ((liquid_status.type_flags & MAP_LIQUID_TYPE_DARK_WATER) && !IsTaxiFlying() && !GetTransport())
+    if ((liquid_status.type_flags & MAP_LIQUID_TYPE_DARK_WATER) && !IsTaxiFlying() && !IsBoarded())
         m_MirrorTimerFlags |= UNDERWATER_INDARKWATER;
     else
         m_MirrorTimerFlags &= ~UNDERWATER_INDARKWATER;

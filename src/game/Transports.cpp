@@ -436,7 +436,7 @@ void Transport::UpdateForMap(Map const* targetMap)
     {
         for (Map::PlayerList::const_iterator itr = pl.begin(); itr != pl.end(); ++itr)
         {
-            if (this != itr->getSource()->GetTransport())
+            if (!itr->getSource()->IsBoarded() || this != itr->getSource()->GetTransportInfo()->GetTransport())
             {
                 UpdateData transData;
                 BuildCreateUpdateBlockForPlayer(&transData, itr->getSource());
@@ -454,7 +454,7 @@ void Transport::UpdateForMap(Map const* targetMap)
         transData.BuildPacket(&out_packet);
 
         for (Map::PlayerList::const_iterator itr = pl.begin(); itr != pl.end(); ++itr)
-            if (this != itr->getSource()->GetTransport())
+            if (!itr->getSource()->IsBoarded() || this != itr->getSource()->GetTransportInfo()->GetTransport())
                 itr->getSource()->SendDirectMessage(&out_packet);
     }
 }

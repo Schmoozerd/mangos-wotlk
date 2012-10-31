@@ -8157,7 +8157,7 @@ bool Unit::isVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, boo
         GetTypeId() == TYPEID_PLAYER &&  u->GetTypeId() == TYPEID_PLAYER &&
         !((Player*)this)->GetSession()->PlayerLogout() && !((Player*)u)->GetSession()->PlayerLogout() &&
         !((Player*)this)->GetSession()->PlayerLoading() && !((Player*)u)->GetSession()->PlayerLoading() &&
-        ((Player*)this)->GetTransport() && ((Player*)this)->GetTransport() == ((Player*)u)->GetTransport();
+        IsBoarded() && u->IsBoarded() && m_transportInfo->GetTransport() == u->GetTransportInfo()->GetTransport();
 
     // not in world
     if (!at_same_transport && (!IsInWorld() || !u->IsInWorld()))

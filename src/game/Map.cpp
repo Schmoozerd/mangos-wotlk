@@ -892,19 +892,23 @@ void Map::SendInitSelf(Player* player)
 
     UpdateData data;
 
+    Transport* transporter = NULL;
+
+    if (TransportInfo* transportInfo = player->GetTransportInfo())
+        if (transportInfo->IsOnMOTransport())
+            transporter = (Transport*)transportInfo->GetTransport();
+
     // attach to player data current transport data
-    if (Transport* transport = player->GetTransport())
-    {
-        transport->BuildCreateUpdateBlockForPlayer(&data, player);
-    }
+    if (transporter)
+        transporter->BuildCreateUpdateBlockForPlayer(&data, player);
 
     // build data for self presence in world at own client (one time for map)
     player->BuildCreateUpdateBlockForPlayer(&data, player);
 
     // build other passengers at transport also (they always visible and marked as visible and will not send at visibility update at add to map
-    if (Transport* transport = player->GetTransport())
+    if (transporter)
     {
-        for (PassengerMap::const_iterator itr = transport->GetPassengers().begin(); itr != transport->GetPassengers().end(); ++itr)
+        for (PassengerMap::const_iterator itr = transporter->GetPassengers().begin(); itr != transporter->GetPassengers().end(); ++itr)
         {
             if (player != itr->first && player->HaveAtClient(itr->first))
             {
@@ -923,10 +927,16 @@ void Map::SendInitTransports(Player* player)
 {
     UpdateData transData;
 
+    Transport* transporter = NULL;
+
+    if (TransportInfo* transportInfo = player->GetTransportInfo())
+        if (transportInfo->IsOnMOTransport())
+            transporter = (Transport*)transportInfo->GetTransport();
+
     for (TransportSet::const_iterator i = sTransportMgr.GetTransports().begin(); i != sTransportMgr.GetTransports().end(); ++i)
     {
         // send data for current transport in other place
-        if ((*i) != player->GetTransport() && (*i)->GetMapId() == i_id)
+        if ((*i) != transporter && (*i)->GetMapId() == i_id)
         {
             (*i)->BuildCreateUpdateBlockForPlayer(&transData, player);
         }
@@ -942,9 +952,15 @@ void Map::SendRemoveTransports(Player* player)
 {
     UpdateData transData;
 
+    Transport* transporter = NULL;
+
+    if (TransportInfo* transportInfo = player->GetTransportInfo())
+        if (transportInfo->IsOnMOTransport())
+            transporter = (Transport*)transportInfo->GetTransport();
+
     // except used transport
     for (TransportSet::const_iterator i = sTransportMgr.GetTransports().begin(); i != sTransportMgr.GetTransports().end(); ++i)
-        if ((*i) != player->GetTransport() && (*i)->GetMapId() != i_id)
+        if ((*i) != transporter && (*i)->GetMapId() != i_id)
             (*i)->BuildOutOfRangeUpdateBlock(&transData);
 
     WorldPacket packet;
