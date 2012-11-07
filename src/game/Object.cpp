@@ -376,7 +376,7 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
     // 0x2
     if (updateFlags & UPDATEFLAG_TRANSPORT)
     {
-        *data << uint32(((Transport*)this)->GetMovementProgress());           // ms time
+        *data << uint32(WorldTimer::getMSTime());           // ms time
     }
 
     // 0x80

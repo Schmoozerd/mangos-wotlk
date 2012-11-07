@@ -40,7 +40,6 @@ class Transport : public GameObject
         bool UnBoardPassenger(WorldObject* passenger);
 
         PassengerMap const& GetPassengers() const { return m_transportBase->GetPassengers(); }
-        uint32 GetMovementProgress() const { return m_timer; }
 
     private:
         struct WayPoint
