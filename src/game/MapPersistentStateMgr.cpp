@@ -28,7 +28,6 @@
 #include "MapManager.h"
 #include "Timer.h"
 #include "GridNotifiersImpl.h"
-#include "Transports.h"
 #include "ObjectMgr.h"
 #include "GameEventMgr.h"
 #include "World.h"

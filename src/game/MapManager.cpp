@@ -21,13 +21,11 @@
 #include "Policies/SingletonImp.h"
 #include "Database/DatabaseEnv.h"
 #include "Log.h"
-#include "Transports.h"
 #include "GridDefines.h"
 #include "World.h"
 #include "CellImpl.h"
 #include "Corpse.h"
 #include "ObjectMgr.h"
-#include "TransportMgr.h"
 
 #define CLASS_LOCK MaNGOS::ClassLevelLockable<MapManager, ACE_Recursive_Thread_Mutex>
 INSTANTIATE_SINGLETON_2(MapManager, CLASS_LOCK);
@@ -173,13 +171,6 @@ void MapManager::Update(uint32 diff)
 
     for (MapMapType::iterator iter = i_maps.begin(); iter != i_maps.end(); ++iter)
         iter->second->Update((uint32)i_timer.GetCurrent());
-
-    // Hack - MOT's should always be active objects
-    for (TransportSet::iterator iter = sTransportMgr.GetTransports().begin(); iter != sTransportMgr.GetTransports().end(); ++iter)
-    {
-        WorldObject::UpdateHelper helper((*iter));
-        helper.Update((uint32)i_timer.GetCurrent());
-    }
 
     // remove all maps which can be unloaded
     MapMapType::iterator iter = i_maps.begin();

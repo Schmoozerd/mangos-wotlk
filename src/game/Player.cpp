@@ -47,7 +47,6 @@
 #include "GuildMgr.h"
 #include "Pet.h"
 #include "Util.h"
-#include "Transports.h"
 #include "Weather.h"
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundMgr.h"
@@ -588,7 +587,7 @@ Player::~Player()
 
     // Unboard passenger
     if (m_transportInfo && m_transportInfo->IsOnMOTransport())
-        ((Transport*)m_transportInfo->GetTransport())->UnBoardPassenger(this);
+        ((GameObject*)m_transportInfo->GetTransport())->GetTransportBase()->UnBoard(this);
 
     for (size_t x = 0; x < ItemSetEff.size(); ++x)
         delete ItemSetEff[x];
@@ -1672,7 +1671,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
 
     // if we were on a transport, leave
     if (m_transportInfo && m_transportInfo->IsOnMOTransport() && !(options & TELE_TO_NOT_LEAVE_TRANSPORT))
-        ((Transport*)m_transportInfo->GetTransport())->UnBoardPassenger(this);
+        ((GameObject*)m_transportInfo->GetTransport())->GetTransportBase()->UnBoard(this);
 
     // The player was ported to another map and looses the duel immediately.
     // We have to perform this check before the teleport, otherwise the
@@ -15788,7 +15787,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
             {
                 DEBUG_LOG("Player %s using client without required expansion tried login at transport at non accessible map %u. Teleport to default race/class locations.", GetName(), (*iter)->GetMapId());
             }
-            else if ((*iter)->BoardPassenger(this, lx, ly, lz, lo))
+            else if ((*iter)->GetTransportBase()->Board(this, lx, ly, lz, lo))
             {
                 SetLocationMapId((*iter)->GetMapId());
             }

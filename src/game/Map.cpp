@@ -25,7 +25,6 @@
 #include "CellImpl.h"
 #include "InstanceData.h"
 #include "GridNotifiersImpl.h"
-#include "Transports.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "World.h"
@@ -37,6 +36,7 @@
 #include "VMapFactory.h"
 #include "MoveMap.h"
 #include "BattleGround/BattleGroundMgr.h"
+#include "TransportSystem.h"
 #include "TransportMgr.h"
 
 Map::~Map()
@@ -892,23 +892,23 @@ void Map::SendInitSelf(Player* player)
 
     UpdateData data;
 
-    Transport* transporter = NULL;
+    GOTransportBase* transportBase = NULL;
 
     if (TransportInfo* transportInfo = player->GetTransportInfo())
         if (transportInfo->IsOnMOTransport())
-            transporter = (Transport*)transportInfo->GetTransport();
+            transportBase = ((GameObject*)transportInfo->GetTransport())->GetTransportBase();
 
     // attach to player data current transport data
-    if (transporter)
-        transporter->BuildCreateUpdateBlockForPlayer(&data, player);
+    if (transportBase)
+        transportBase->GetOwner()->BuildCreateUpdateBlockForPlayer(&data, player);
 
     // build data for self presence in world at own client (one time for map)
     player->BuildCreateUpdateBlockForPlayer(&data, player);
 
     // build other passengers at transport also (they always visible and marked as visible and will not send at visibility update at add to map
-    if (transporter)
+    if (transportBase)
     {
-        for (PassengerMap::const_iterator itr = transporter->GetPassengers().begin(); itr != transporter->GetPassengers().end(); ++itr)
+        for (PassengerMap::const_iterator itr = transportBase->GetPassengers().begin(); itr != transportBase->GetPassengers().end(); ++itr)
         {
             if (player != itr->first && player->HaveAtClient(itr->first))
             {
@@ -927,11 +927,11 @@ void Map::SendInitTransports(Player* player)
 {
     UpdateData transData;
 
-    Transport* transporter = NULL;
+    WorldObject* transporter = NULL;
 
     if (TransportInfo* transportInfo = player->GetTransportInfo())
         if (transportInfo->IsOnMOTransport())
-            transporter = (Transport*)transportInfo->GetTransport();
+            transporter = transportInfo->GetTransport();
 
     for (TransportSet::const_iterator i = sTransportMgr.GetTransports().begin(); i != sTransportMgr.GetTransports().end(); ++i)
     {
@@ -952,11 +952,11 @@ void Map::SendRemoveTransports(Player* player)
 {
     UpdateData transData;
 
-    Transport* transporter = NULL;
+    WorldObject* transporter = NULL;
 
     if (TransportInfo* transportInfo = player->GetTransportInfo())
         if (transportInfo->IsOnMOTransport())
-            transporter = (Transport*)transportInfo->GetTransport();
+            transporter = transportInfo->GetTransport();
 
     // except used transport
     for (TransportSet::const_iterator i = sTransportMgr.GetTransports().begin(); i != sTransportMgr.GetTransports().end(); ++i)

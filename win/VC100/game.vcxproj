@@ -479,7 +479,6 @@
     <ClCompile Include="..\..\src\game\Totem.cpp" />
     <ClCompile Include="..\..\src\game\TotemAI.cpp" />
     <ClCompile Include="..\..\src\game\TradeHandler.cpp" />
-    <ClCompile Include="..\..\src\game\Transports.cpp" />
     <ClCompile Include="..\..\src\game\Unit.cpp" />
     <ClCompile Include="..\..\src\game\UpdateData.cpp" />
     <ClCompile Include="..\..\src\game\Vehicle.cpp" />
@@ -642,7 +641,6 @@
     <ClInclude Include="..\..\src\game\Totem.h" />
     <ClInclude Include="..\..\src\game\TotemAI.h" />
     <ClInclude Include="..\..\src\game\TransportMgr.h" />
-    <ClInclude Include="..\..\src\game\Transports.h" />
     <ClInclude Include="..\..\src\game\TransportSystem.h" />
     <ClInclude Include="..\..\src\game\Unit.h" />
     <ClInclude Include="..\..\src\game\UnitEvents.h" />

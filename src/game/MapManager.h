@@ -26,7 +26,6 @@
 #include "Map.h"
 #include "GridStates.h"
 
-class Transport;
 class BattleGround;
 
 struct MANGOS_DLL_DECL MapID

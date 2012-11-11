@@ -26,11 +26,11 @@
 #include "Vehicle.h"
 #include "SpellAuras.h"
 #include "MapManager.h"
-#include "Transports.h"
 #include "BattleGround/BattleGround.h"
 #include "WaypointMovementGenerator.h"
 #include "MapPersistentStateMgr.h"
 #include "ObjectMgr.h"
+#include "TransportSystem.h"
 #include "TransportMgr.h"
 
 void WorldSession::HandleMoveWorldportAckOpcode(WorldPacket& /*recv_data*/)
@@ -555,7 +555,7 @@ void WorldSession::HandleMoverRelocation(MovementAndPositionInfo& movementInfo)
 
                     /** It's considered that player and transport running in same thread context,
                         so it's safe to modify transport(add passenger) */
-                    (*iter)->BoardPassenger(plMover, movementInfo.GetLocalPositionX(), movementInfo.GetLocalPositionY(),
+                    (*iter)->GetTransportBase()->Board(plMover, movementInfo.GetLocalPositionX(), movementInfo.GetLocalPositionY(),
                                 movementInfo.GetLocalPositionZ(), movementInfo.GetLocalOrientation());
 
                     break;
@@ -569,7 +569,7 @@ void WorldSession::HandleMoverRelocation(MovementAndPositionInfo& movementInfo)
             {
                 // if we were on a mo transport, leave
                 if (transportInfo->IsOnMOTransport())
-                    ((Transport*)transportInfo->GetTransport())->UnBoardPassenger(plMover);
+                    ((GameObject*)transportInfo->GetTransport())->GetTransportBase()->UnBoard(plMover);
             }
             else // Update local position
                 transportInfo->SetLocalPosition(movementInfo.GetLocalPositionX(), movementInfo.GetLocalPositionY(),

@@ -22,11 +22,11 @@
 #include "UpdateData.h"
 #include "Item.h"
 #include "Map.h"
-#include "Transports.h"
 #include "ObjectAccessor.h"
 #include "BattleGround/BattleGroundMgr.h"
 #include "CreatureAI.h"
 #include "Player.h"
+#include "TransportSystem.h"
 
 using namespace MaNGOS;
 
@@ -47,7 +47,7 @@ void VisibleNotifier::Notify()
     {
         if (transportInfo->IsOnMOTransport())
         {
-            for (PassengerMap::const_iterator itr = ((Transport*)transportInfo->GetTransport())->GetPassengers().begin(); itr != ((Transport*)transportInfo->GetTransport())->GetPassengers().end(); ++itr)
+            for (PassengerMap::const_iterator itr = ((GameObject*)transportInfo->GetTransport())->GetTransportBase()->GetPassengers().begin(); itr != ((GameObject*)transportInfo->GetTransport())->GetTransportBase()->GetPassengers().end(); ++itr)
             {
                 if (i_clientGUIDs.find(itr->first->GetObjectGuid()) != i_clientGUIDs.end())
                 {

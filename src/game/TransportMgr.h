@@ -21,7 +21,7 @@
 
 #include "Policies/Singleton.h"
 
-typedef std::set < Transport* /*MOTransporter*/ > TransportSet;
+typedef std::set < GameObject* /*MOTransporter*/ > TransportSet;
 
 class TransportMgr
 {

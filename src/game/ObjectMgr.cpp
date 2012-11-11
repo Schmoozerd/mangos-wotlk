@@ -30,7 +30,6 @@
 #include "World.h"
 #include "Group.h"
 #include "ArenaTeam.h"
-#include "Transports.h"
 #include "ProgressBar.h"
 #include "Language.h"
 #include "PoolManager.h"

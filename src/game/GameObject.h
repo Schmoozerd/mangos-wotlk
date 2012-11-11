@@ -603,6 +603,7 @@ enum CapturePointSlider
 };
 
 class Unit;
+class GOTransportBase;
 class GameObjectModel;
 struct GameObjectDisplayInfoEntry;
 
@@ -769,6 +770,9 @@ class MANGOS_DLL_SPEC GameObject : public WorldObject
         void SetCapturePointSlider(float value);
         float GetCapturePointSlider() const { return m_captureSlider; }
 
+        void SetTransportBase(uint32 pathId);
+        GOTransportBase* GetTransportBase() const { return m_transportBase; }
+
         GridReference<GameObject>& GetGridRef() { return m_gridRef; }
 
         GameObjectModel* m_model;
@@ -812,6 +816,7 @@ class MANGOS_DLL_SPEC GameObject : public WorldObject
         void UpdateModel();                                 // updates model in case displayId were changed
         void UpdateCollisionState() const;                  // updates state in Map's dynamic collision tree
 
+        GOTransportBase* m_transportBase;
         GridReference<GameObject> m_gridRef;
 };
 

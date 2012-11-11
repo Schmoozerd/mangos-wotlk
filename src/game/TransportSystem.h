@@ -59,7 +59,7 @@ class TransportBase
         void BoardPassenger(WorldObject* passenger, float lx, float ly, float lz, float lo, uint8 seat);
         void UnBoardPassenger(WorldObject* passenger);
 
-        void Update(uint32 diff);
+        virtual void Update(uint32 diff);
         void UpdateGlobalPositions();
         void UpdateGlobalPositionOf(WorldObject* passenger, float lx, float ly, float lz, float lo) const;
 
@@ -83,6 +83,74 @@ class TransportBase
         Position m_lastPosition;
         float m_sinO, m_cosO;
         uint32 m_updatePositionsTimer;                      ///< Timer that is used to trigger updates for global coordinate calculations
+};
+
+struct WayPoint
+{
+    WayPoint() : mapid(0), x(0), y(0), z(0), teleport(false) {}
+    WayPoint(uint32 _mapid, float _x, float _y, float _z, bool _teleport, uint32 _arrivalEventID = 0, uint32 _departureEventID = 0)
+            : mapid(_mapid), x(_x), y(_y), z(_z), teleport(_teleport),
+            arrivalEventID(_arrivalEventID), departureEventID(_departureEventID)
+    {
+    }
+
+    uint32 mapid;
+    float x;
+    float y;
+    float z;
+    bool teleport;
+    uint32 arrivalEventID;
+    uint32 departureEventID;
+};
+
+struct keyFrame
+{
+    explicit keyFrame(TaxiPathNodeEntry const& _node) : node(&_node),
+            distSinceStop(-1.0f), distUntilStop(-1.0f), distFromPrev(-1.0f), tFrom(0.0f), tTo(0.0f)
+    {
+    }
+
+    TaxiPathNodeEntry const* node;
+
+    float distSinceStop;
+    float distUntilStop;
+    float distFromPrev;
+    float tFrom, tTo;
+};
+
+typedef std::map<uint32, WayPoint> WayPointMap;
+
+/**
+ * A class to provide support for gameobject transporter.
+ */
+
+class GOTransportBase : public TransportBase
+{
+    public:
+        explicit GOTransportBase(GameObject* owner, uint32 pathId);
+        ~GOTransportBase();
+
+        bool Board(WorldObject* passenger, float lx, float ly, float lz, float lo);
+        bool UnBoard(WorldObject* passenger);
+
+        void Update(uint32 diff) override;
+
+        WayPoint GetCurrentWayPoint() { return m_curr->second; }
+
+    private:
+        void GenerateWaypoints(uint32 pathId);
+        void MoveToNextWayPoint();                          // move m_next/m_cur to next points
+        void DoEventIfAny(WayPointMap::value_type const& node, bool departure);
+
+        void TeleportTransport(uint32 newMapid, float x, float y, float z);
+        void UpdateForMap(Map const* map);
+
+        WayPointMap::const_iterator m_curr;
+        WayPointMap::const_iterator m_next;
+        WayPointMap m_WayPoints;
+        uint32 m_nextNodeTime;
+        uint32 m_pathTime;
+        uint32 m_timer;
 };
 
 /**

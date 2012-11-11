@@ -37,6 +37,7 @@
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundAV.h"
 #include "OutdoorPvP/OutdoorPvP.h"
+#include "TransportSystem.h"
 #include "Util.h"
 #include "ScriptMgr.h"
 #include "vmap/GameObjectModel.h"
@@ -46,6 +47,7 @@
 GameObject::GameObject() : WorldObject(),
     m_goInfo(NULL),
     m_displayInfo(NULL),
+    m_transportBase(NULL)
     loot(this),
     m_model(NULL)
 {
@@ -73,6 +75,7 @@ GameObject::GameObject() : WorldObject(),
 
 GameObject::~GameObject()
 {
+    delete m_transportBase;
     delete m_model;
 }
 
@@ -141,7 +144,12 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map* map, uint32 phaseMa
         return false;
     }
 
-    Object::_Create(guidlow, goinfo->id, HIGHGUID_GAMEOBJECT);
+    if (goinfo->type == GAMEOBJECT_TYPE_MO_TRANSPORT)
+    {
+        Object::_Create(guidlow, 0, HIGHGUID_MO_TRANSPORT);
+    }
+    else
+        Object::_Create(guidlow, goinfo->id, HIGHGUID_GAMEOBJECT);
 
     m_goInfo = goinfo;
 
@@ -163,7 +171,8 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map* map, uint32 phaseMa
     SetUInt32Value(GAMEOBJECT_FACTION, goinfo->faction);
     SetUInt32Value(GAMEOBJECT_FLAGS, goinfo->flags);
 
-    if (goinfo->type == GAMEOBJECT_TYPE_TRANSPORT)
+    if (goinfo->type == GAMEOBJECT_TYPE_TRANSPORT ||
+        goinfo->type == GAMEOBJECT_TYPE_MO_TRANSPORT)
         SetFlag(GAMEOBJECT_FLAGS, (GO_FLAG_TRANSPORT | GO_FLAG_NODESPAWN));
 
     SetEntry(goinfo->id);
@@ -203,10 +212,12 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map* map, uint32 phaseMa
 
 void GameObject::Update(uint32 update_diff, uint32 p_time)
 {
-    if (GetObjectGuid().IsMOTransport())
+    if (m_transportBase)
     {
-        //((Transport*)this)->Update(p_time);
-        return;
+        m_transportBase->Update(update_diff);
+
+        if (GetObjectGuid().IsMOTransport())
+            return;
     }
 
     switch (m_lootState)
@@ -2323,4 +2334,20 @@ void GameObject::ForceGameObjectHealth(int32 diff, Unit* caster)
 
     // Set health
     SetGoAnimProgress(GetMaxHealth() ? m_useTimes * 255 / GetMaxHealth() : 255);
+}
+
+void GameObject::SetTransportBase(uint32 pathId)
+{
+    delete m_transportBase;
+
+    if (pathId)
+    {
+        m_transportBase = new GOTransportBase(this, pathId);
+        m_updateFlag |= UPDATEFLAG_TRANSPORT | UPDATEFLAG_POSITION;
+    }
+    else
+    {
+        m_transportBase = NULL;
+        m_updateFlag &= ~UPDATEFLAG_TRANSPORT | ~UPDATEFLAG_POSITION;
+    }
 }

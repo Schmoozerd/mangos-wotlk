@@ -46,7 +46,6 @@ class Channel;
 class DynamicObject;
 class Creature;
 class PlayerMenu;
-class Transport;
 class UpdateMask;
 class SpellCastTargets;
 class PlayerSocial;

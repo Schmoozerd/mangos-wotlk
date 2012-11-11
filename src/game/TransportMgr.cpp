@@ -18,7 +18,7 @@
 
 #include "TransportMgr.h"
 #include "Policies/SingletonImp.h"
-#include "Transports.h"
+#include "TransportSystem.h"
 #include "ProgressBar.h"
 
 INSTANTIATE_SINGLETON_1(TransportMgr);
@@ -51,71 +51,68 @@ void TransportMgr::LoadTransports()
     {
         bar.step();
 
-        Transport* t = new Transport;
-
         Field* fields = result->Fetch();
 
         uint32 entry = fields[0].GetUInt32();
         std::string name = fields[1].GetCppString();
-        t->m_period = fields[2].GetUInt32();
+        uint32 period = fields[2].GetUInt32();
 
-        const GameObjectInfo* goinfo = ObjectMgr::GetGameObjectInfo(entry);
+        const GameObjectInfo* pGOInfo = ObjectMgr::GetGameObjectInfo(entry);
 
-        if (!goinfo)
+        if (!pGOInfo)
         {
-            sLog.outErrorDb("Transport ID:%u, Name: %s, will not be loaded, gameobject_template missing", entry, name.c_str());
-            delete t;
+            sLog.outErrorDb("Transport ID: %u, Name: %s, will not be loaded, gameobject_template missing", entry, name.c_str());
             continue;
         }
 
-        if (goinfo->type != GAMEOBJECT_TYPE_MO_TRANSPORT)
+        if (pGOInfo->type != GAMEOBJECT_TYPE_MO_TRANSPORT)
         {
-            sLog.outErrorDb("Transport ID:%u, Name: %s, will not be loaded, gameobject_template type wrong", entry, name.c_str());
-            delete t;
+            sLog.outErrorDb("Transport ID: %u, Name: %s, will not be loaded, gameobject_template type wrong", entry, name.c_str());
             continue;
         }
 
-        // sLog.outString("Loading transport %d between %s, %s", entry, name.c_str(), goinfo->name);
+        GameObject* transporter = new GameObject;
 
-        // Unused
-        std::set<uint32> mapsUsed;
+        /* First of all we have to create our transportbase and calculate it's path,
+           to get the startposition and set it correctly later */
+        transporter->SetTransportBase(pGOInfo->moTransport.taxiPathId);
+        GOTransportBase* transportBase = transporter->GetTransportBase();
+        MANGOS_ASSERT(transportBase); // Can occur with invalid taxiPathId
 
-        if (!t->GenerateWaypoints(goinfo->moTransport.taxiPathId, mapsUsed))
-            // skip transports with empty waypoints list
+        /* As most MOT's are active objects we have to create a valid map object as well
+           ToDo: MOT's in instances are not possible with the current handling */
+        Map* transporterMap = sMapMgr.CreateMap(transportBase->GetCurrentWayPoint().mapid, transporter);
+        MANGOS_ASSERT(transporterMap); // Instancemaps will crash for sure
+
+        // Guid == Entry :? Orientation :? QuaternionData :?
+        if (!transporter->Create(pGOInfo->id, pGOInfo->id, transporterMap, PHASEMASK_ANYWHERE, transportBase->GetCurrentWayPoint().x,
+                    transportBase->GetCurrentWayPoint().y, transportBase->GetCurrentWayPoint().z, 0.0f, QuaternionData(), GO_ANIMPROGRESS_DEFAULT))
         {
-            sLog.outErrorDb("Transport (path id %u) path size = 0. Transport ignored, check DBC files or transport GO data0 field.", goinfo->moTransport.taxiPathId);
-            delete t;
+            sLog.outError("Transport ID: %u, Name: %s, could not be created. Skipped", entry, name.c_str());
+            delete transporter;
             continue;
         }
 
-        float x, y, z, o;
-        uint32 mapid;
-        x = t->m_WayPoints[0].x; y = t->m_WayPoints[0].y; z = t->m_WayPoints[0].z; mapid = t->m_WayPoints[0].mapid; o = 1;
+        // Set period
+        transporter->SetUInt32Value(GAMEOBJECT_LEVEL, period);
 
-        // current code does not support transports in dungeon!
-        const MapEntry* pMapInfo = sMapStore.LookupEntry(mapid);
-        if (!pMapInfo || pMapInfo->Instanceable())
-        {
-            delete t;
-            continue;
-        }
+        // low part always 0, dynamicHighValue is some kind of progression (not implemented)
+        transporter->SetUInt16Value(GAMEOBJECT_DYNAMIC, 0, 0);
+        transporter->SetUInt16Value(GAMEOBJECT_DYNAMIC, 1, 0 /*dynamicHighValue*/);
 
-        // creates the Gameobject
-        if (!t->Create(entry, mapid, x, y, z, o, GO_ANIMPROGRESS_DEFAULT, 0))
-        {
-            delete t;
-            continue;
-        }
+        // Most massive object transporter are always active objects
+        transporter->SetActiveObjectState(true);
 
-        m_transports.insert(t);
+        // Add the transporter to the map
+        transporterMap->Add<GameObject>(transporter);
 
-        // If we someday decide to use the grid to track transports, here:
-        t->SetMap(sMapMgr.CreateMap(mapid, t));
+        // Insert our new mot
+        m_transports.insert(transporter);
 
-        // t->GetMap()->Add<GameObject>((GameObject *)t);
         ++count;
     }
     while (result->NextRow());
+
     delete result;
 
     sLog.outString();
