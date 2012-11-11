@@ -256,7 +256,7 @@ void GOTransportBase::Update(uint32 diff)
         }
         else
         {
-            m_owner->Relocate(m_curr->second.x, m_curr->second.y, m_curr->second.z);
+            m_owner->GetMap()->GameObjectRelocation((GameObject*)m_owner, m_curr->second.x, m_curr->second.y, m_curr->second.z, m_owner->GetOrientation());
 
             // Update passenger positions
             UpdateGlobalPositions();

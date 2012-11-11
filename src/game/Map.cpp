@@ -775,6 +775,39 @@ bool Map::CreatureRespawnRelocation(Creature* c)
         return false;
 }
 
+void Map::GameObjectRelocation(GameObject* gameobject, float x, float y, float z, float orientation)
+{
+    MANGOS_ASSERT(gameobject);
+
+    Cell old_cell(MaNGOS::ComputeCellPair(gameobject->GetPositionX(), gameobject->GetPositionY()));
+    Cell new_cell(MaNGOS::ComputeCellPair(x, y));
+
+    if (old_cell.DiffGrid(new_cell))
+    {
+        if (!gameobject->isActiveObject() && !loaded(new_cell.gridPair()))
+        {
+            DEBUG_FILTER_LOG(LOG_FILTER_TRANSPORT_MOVES, "GameObject (GUID: %u Entry: %u) attempt move from grid[%u,%u]cell[%u,%u] to unloaded grid[%u,%u]cell[%u,%u].", gameobject->GetGUIDLow(), gameobject->GetEntry(), old_cell.GridX(), old_cell.GridY(), old_cell.CellX(), old_cell.CellY(), new_cell.GridX(), new_cell.GridY(), new_cell.CellX(), new_cell.CellY());
+            return;
+        }
+        EnsureGridLoadedAtEnter(new_cell);
+    }
+
+    if (old_cell != new_cell)
+    {
+        DEBUG_FILTER_LOG(LOG_FILTER_TRANSPORT_MOVES, "GameObject (GUID: %u Entry: %u) moved in grid[%u,%u] from cell[%u,%u] to cell[%u,%u].", gameobject->GetGUIDLow(), gameobject->GetEntry(), old_cell.GridX(), old_cell.GridY(), old_cell.CellX(), old_cell.CellY(), new_cell.CellX(), new_cell.CellY());
+        NGridType* oldGrid = getNGrid(old_cell.GridX(), old_cell.GridY());
+        NGridType* newGrid = getNGrid(new_cell.GridX(), new_cell.GridY());
+        RemoveFromGrid(gameobject, oldGrid, old_cell);
+        AddToGrid(gameobject, newGrid, new_cell);
+        gameobject->GetViewPoint().Event_GridChanged(&(*newGrid)(new_cell.CellX(), new_cell.CellY()));
+    }
+
+    gameobject->Relocate(x, y, z, orientation);
+
+    gameobject->UpdateObjectVisibility();
+    //gameobject->OnRelocated();
+}
+
 bool Map::UnloadGrid(const uint32& x, const uint32& y, bool pForce)
 {
     NGridType* grid = getNGrid(x, y);
