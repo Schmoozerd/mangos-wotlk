@@ -770,7 +770,7 @@ class MANGOS_DLL_SPEC GameObject : public WorldObject
         void SetCapturePointSlider(float value);
         float GetCapturePointSlider() const { return m_captureSlider; }
 
-        void SetTransportBase(uint32 pathId);
+        void InitiateTransporter(uint32 pathId);
         GOTransportBase* GetTransportBase() const { return m_transportBase; }
 
         GridReference<GameObject>& GetGridRef() { return m_gridRef; }

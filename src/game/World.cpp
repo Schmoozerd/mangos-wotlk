@@ -66,7 +66,6 @@
 #include "AuctionHouseBot/AuctionHouseBot.h"
 #include "CharacterDatabaseCleaner.h"
 #include "CreatureLinkingMgr.h"
-#include "TransportMgr.h"
 
 INSTANTIATE_SINGLETON_1(World);
 
@@ -1401,10 +1400,6 @@ void World::SetInitialWorldSettings()
     ///- Initialize Outdoor PvP
     sLog.outString("Starting Outdoor PvP System");
     sOutdoorPvPMgr.InitOutdoorPvP();
-
-    ///- Initialize Massive object transports
-    sLog.outString("Loading MOTransports...");
-    sTransportMgr.LoadTransports();
 
     sLog.outString("Deleting expired bans...");
     LoginDatabase.Execute("DELETE FROM ip_banned WHERE unbandate<=UNIX_TIMESTAMP() AND unbandate<>bandate");

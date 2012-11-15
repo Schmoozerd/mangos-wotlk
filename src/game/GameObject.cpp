@@ -37,12 +37,13 @@
 #include "BattleGround/BattleGround.h"
 #include "BattleGround/BattleGroundAV.h"
 #include "OutdoorPvP/OutdoorPvP.h"
-#include "TransportSystem.h"
 #include "Util.h"
 #include "ScriptMgr.h"
 #include "vmap/GameObjectModel.h"
 #include "SQLStorages.h"
 #include <G3D/Quat.h>
+#include "TransportSystem.h"
+#include "TransportMgr.h"
 
 GameObject::GameObject() : WorldObject(),
     m_goInfo(NULL),
@@ -192,6 +193,9 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map* map, uint32 phaseMa
             break;
         case GAMEOBJECT_TYPE_DESTRUCTIBLE_BUILDING:
             ForceGameObjectHealth(GetMaxHealth(), NULL);
+            break;
+        case GAMEOBJECT_TYPE_MO_TRANSPORT:                  // ToDo: Elevators and such need a similar impl.
+            InitiateTransporter(goinfo->moTransport.taxiPathId);
             break;
     }
 
@@ -2336,18 +2340,14 @@ void GameObject::ForceGameObjectHealth(int32 diff, Unit* caster)
     SetGoAnimProgress(GetMaxHealth() ? m_useTimes * 255 / GetMaxHealth() : 255);
 }
 
-void GameObject::SetTransportBase(uint32 pathId)
+void GameObject::InitiateTransporter(uint32 pathId)
 {
-    delete m_transportBase;
+    MANGOS_ASSERT(!m_transportBase && GetMap());
 
-    if (pathId)
-    {
-        m_transportBase = new GOTransportBase(this, pathId);
-        m_updateFlag |= UPDATEFLAG_TRANSPORT | UPDATEFLAG_POSITION;
-    }
-    else
-    {
-        m_transportBase = NULL;
-        m_updateFlag &= ~UPDATEFLAG_TRANSPORT | ~UPDATEFLAG_POSITION;
-    }
+    // low part always 0, dynamicHighValue is some kind of progression (not implemented)
+    SetUInt16Value(GAMEOBJECT_DYNAMIC, 0, 0);
+    SetUInt16Value(GAMEOBJECT_DYNAMIC, 1, 0 /*dynamicHighValue*/);
+
+    m_transportBase = new GOTransportBase(this, pathId);
+    m_updateFlag |= UPDATEFLAG_TRANSPORT | UPDATEFLAG_POSITION;
 }

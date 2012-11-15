@@ -31,6 +31,8 @@
 #include "Unit.h"
 #include "Vehicle.h"
 #include "MapManager.h"
+#include "TransportMgr.h"
+#include "./movement/MoveSpline.h"
 
 /* **************************************** TransportBase ****************************************/
 
@@ -185,13 +187,18 @@ void TransportBase::UnBoardPassenger(WorldObject* passenger)
 
 /* *************************************** GOTransportBase ***************************************/
 
-GOTransportBase::GOTransportBase(GameObject* owner, uint32 pathId) : TransportBase(owner)
+GOTransportBase::GOTransportBase(GameObject* owner, uint32 pathId) :
+    TransportBase(owner),
+    m_moveSpline(new Movement::MoveSpline()),
+    m_transportStopTimer(0),
+    m_currentNode(0)
 {
-    GenerateWaypoints(pathId);
+    LoadTransportPath(pathId);
 }
 
 GOTransportBase::~GOTransportBase()
 {
+    delete m_moveSpline;
 }
 
 bool GOTransportBase::Board(WorldObject* passenger, float lx, float ly, float lz, float lo)
@@ -236,330 +243,184 @@ bool GOTransportBase::UnBoard(WorldObject* passenger)
 
 void GOTransportBase::Update(uint32 diff)
 {
-    if (m_WayPoints.size() <= 1)
+    if (m_transportStopTimer)
+    {
+        if (m_transportStopTimer < diff)
+        {
+            m_transportStopTimer = 0;
+
+            // Handle departure event
+            //TransportStopMap::const_iterator itr = m_transportStops.find(m_currentNode);
+
+            //if (itr != m_transportStops.end())
+                //DoEventIfAny(player, m_currentNode, departureEvent);
+        }
+        else
+        {
+            m_transportStopTimer -= diff;
+            return; // MOT is chilling at the beach
+        }
+    }
+
+    enum
+    {
+        POSITION_UPDATE_DELAY = 400,
+    };
+
+    if (m_moveSpline->Finalized())
         return;
 
-    m_timer = WorldTimer::getMSTime() % m_owner->GetUInt32Value(GAMEOBJECT_LEVEL);
-    while (((m_timer - m_curr->first) % m_pathTime) > ((m_next->first - m_curr->first) % m_pathTime))
+    m_moveSpline->updateState(diff);
+    bool arrived = m_moveSpline->Finalized();
+
+    if (arrived)
+        m_moveSpline->_Interrupt();
+
+    if (m_updatePositionsTimer < diff || arrived)
     {
+        m_updatePositionsTimer = POSITION_UPDATE_DELAY;
+        Movement::Location loc = m_moveSpline->ComputePosition();
 
-        DoEventIfAny(*m_curr, true);
+        m_owner->GetMap()->GameObjectRelocation((GameObject*)m_owner, loc.x, loc.y, loc.z, loc.orientation);
+        DETAIL_FILTER_LOG(LOG_FILTER_TRANSPORT_MOVES, "%s moved to %f %f %f %f", m_owner->GetName(), loc.x, loc.y, loc.z, loc.orientation);
+        m_owner->SummonCreature(1, loc.x, loc.y, loc.z, loc.orientation, TEMPSUMMON_TIMED_DESPAWN, 60000, true);
 
-        MoveToNextWayPoint();
-
-        DoEventIfAny(*m_curr, false);
-
-        // first check help in case client-server transport coordinates de-synchronization
-        if (m_curr->second.mapid != m_owner->GetMapId() || m_curr->second.teleport)
-        {
-            TeleportTransport(m_curr->second.mapid, m_curr->second.x, m_curr->second.y, m_curr->second.z);
-        }
-        else
-        {
-            m_owner->GetMap()->GameObjectRelocation((GameObject*)m_owner, m_curr->second.x, m_curr->second.y, m_curr->second.z, m_owner->GetOrientation());
-
-            // Update passenger positions
-            UpdateGlobalPositions();
-        }
-
-        m_nextNodeTime = m_curr->first;
-
-        if (m_curr == m_WayPoints.begin())
-            DETAIL_FILTER_LOG(LOG_FILTER_TRANSPORT_MOVES, " ************ BEGIN ************** %s", m_owner->GetName());
-
-        DETAIL_FILTER_LOG(LOG_FILTER_TRANSPORT_MOVES, "%s moved to %f %f %f %d", m_owner->GetName(), m_curr->second.x, m_curr->second.y, m_curr->second.z, m_curr->second.mapid);
+        // Update passenger positions
+        UpdateGlobalPositions();
     }
-}
+    else
+        m_updatePositionsTimer -= diff;
 
-void GOTransportBase::GenerateWaypoints(uint32 pathId)
-{
-    MANGOS_ASSERT(pathId < sTaxiPathNodesByPath.size() && "Generating transport path failed. Check DBC files or transport GO data0 field.");
-
-    TaxiPathNodeList const& path = sTaxiPathNodesByPath[pathId];
-
-    std::vector<keyFrame> keyFrames;
-    int mapChange = 0;
-    //mapids.clear();
-    for (size_t i = 1; i < path.size() - 1; ++i)
+    uint32 pointId = (uint32)m_moveSpline->currentPathIdx();
+    if (pointId > m_currentNode)
     {
-        if (mapChange == 0)
+        do
         {
-            TaxiPathNodeEntry const& node_i = path[i];
-            if (node_i.mapid == path[i + 1].mapid)
+            ++m_currentNode;
+
+            // Handle arrival event
+            TransportStopMap::const_iterator itr = m_transportStops.find(m_currentNode);
+
+            if (itr != m_transportStops.end())
             {
-                keyFrame k(node_i);
-                keyFrames.push_back(k);
-                //mapids.insert(k.node->mapid);
+                //DoEventIfAny(player, m_currentNode, arrivalEvent);
+                m_transportStopTimer = itr->second.delay;
+                break;
             }
-            else
+
+            if (pointId == m_currentNode)
+                break;
+        }
+        while (true);
+    }
+
+    // Last waypoint is reached
+    if (arrived)
+    {
+        uint32 nextMapId = sTransportMgr.GetNextMapId(m_owner->GetEntry(), m_owner->GetMap()->GetId());
+
+        /* Teleport player passengers to the next map,
+           and destroy the transporter and it's other passengers */
+        if (nextMapId != m_owner->GetMap()->GetId())
+        {
+            for (PassengerMap::const_iterator itr = m_passengers.begin(); itr != m_passengers.end(); itr = m_passengers.begin())
             {
-                mapChange = 1;
-            }
-        }
-        else
-        {
-            --mapChange;
-        }
-    }
+                MANGOS_ASSERT(itr->first);
 
-    int lastStop = -1;
-    int firstStop = -1;
-
-    // first cell is arrived at by teleportation :S
-    keyFrames[0].distFromPrev = 0;
-    if (keyFrames[0].node->actionFlag == 2)
-    {
-        lastStop = 0;
-    }
-
-    // find the rest of the distances between key points
-    for (size_t i = 1; i < keyFrames.size(); ++i)
-    {
-        if ((keyFrames[i].node->actionFlag == 1) || (keyFrames[i].node->mapid != keyFrames[i - 1].node->mapid))
-        {
-            keyFrames[i].distFromPrev = 0;
-        }
-        else
-        {
-            keyFrames[i].distFromPrev =
-                sqrt(pow(keyFrames[i].node->x - keyFrames[i - 1].node->x, 2) +
-                     pow(keyFrames[i].node->y - keyFrames[i - 1].node->y, 2) +
-                     pow(keyFrames[i].node->z - keyFrames[i - 1].node->z, 2));
-        }
-        if (keyFrames[i].node->actionFlag == 2)
-        {
-            // remember first stop frame
-            if (firstStop == -1)
-                firstStop = i;
-            lastStop = i;
-        }
-    }
-
-    float tmpDist = 0;
-    for (size_t i = 0; i < keyFrames.size(); ++i)
-    {
-        int j = (i + lastStop) % keyFrames.size();
-        if (keyFrames[j].node->actionFlag == 2)
-            tmpDist = 0;
-        else
-            tmpDist += keyFrames[j].distFromPrev;
-        keyFrames[j].distSinceStop = tmpDist;
-    }
-
-    for (int i = int(keyFrames.size()) - 1; i >= 0; --i)
-    {
-        int j = (i + (firstStop + 1)) % keyFrames.size();
-        tmpDist += keyFrames[(j + 1) % keyFrames.size()].distFromPrev;
-        keyFrames[j].distUntilStop = tmpDist;
-        if (keyFrames[j].node->actionFlag == 2)
-            tmpDist = 0;
-    }
-
-    for (size_t i = 0; i < keyFrames.size(); ++i)
-    {
-        if (keyFrames[i].distSinceStop < (30 * 30 * 0.5f))
-            keyFrames[i].tFrom = sqrt(2 * keyFrames[i].distSinceStop);
-        else
-            keyFrames[i].tFrom = ((keyFrames[i].distSinceStop - (30 * 30 * 0.5f)) / 30) + 30;
-
-        if (keyFrames[i].distUntilStop < (30 * 30 * 0.5f))
-            keyFrames[i].tTo = sqrt(2 * keyFrames[i].distUntilStop);
-        else
-            keyFrames[i].tTo = ((keyFrames[i].distUntilStop - (30 * 30 * 0.5f)) / 30) + 30;
-
-        keyFrames[i].tFrom *= 1000;
-        keyFrames[i].tTo *= 1000;
-    }
-
-    //    for (int i = 0; i < keyFrames.size(); ++i) {
-    //        sLog.outString("%f, %f, %f, %f, %f, %f, %f", keyFrames[i].x, keyFrames[i].y, keyFrames[i].distUntilStop, keyFrames[i].distSinceStop, keyFrames[i].distFromPrev, keyFrames[i].tFrom, keyFrames[i].tTo);
-    //    }
-
-    // Now we're completely set up; we can move along the length of each waypoint at 100 ms intervals
-    // speed = max(30, t) (remember x = 0.5s^2, and when accelerating, a = 1 unit/s^2
-    int t = 0;
-    bool teleport = false;
-    if (keyFrames[keyFrames.size() - 1].node->mapid != keyFrames[0].node->mapid)
-        teleport = true;
-
-    WayPoint pos(keyFrames[0].node->mapid, keyFrames[0].node->x, keyFrames[0].node->y, keyFrames[0].node->z, teleport,
-                 keyFrames[0].node->arrivalEventID, keyFrames[0].node->departureEventID);
-    m_WayPoints[0] = pos;
-    t += keyFrames[0].node->delay * 1000;
-
-    uint32 cM = keyFrames[0].node->mapid;
-    for (size_t i = 0; i < keyFrames.size() - 1; ++i)
-    {
-        float d = 0;
-        float tFrom = keyFrames[i].tFrom;
-        float tTo = keyFrames[i].tTo;
-
-        // keep the generation of all these points; we use only a few now, but may need the others later
-        if (((d < keyFrames[i + 1].distFromPrev) && (tTo > 0)))
-        {
-            while ((d < keyFrames[i + 1].distFromPrev) && (tTo > 0))
-            {
-                tFrom += 100;
-                tTo -= 100;
-
-                if (d > 0)
+                if (itr->first->GetTypeId() == TYPEID_PLAYER)
                 {
-                    float newX, newY, newZ;
-                    newX = keyFrames[i].node->x + (keyFrames[i + 1].node->x - keyFrames[i].node->x) * d / keyFrames[i + 1].distFromPrev;
-                    newY = keyFrames[i].node->y + (keyFrames[i + 1].node->y - keyFrames[i].node->y) * d / keyFrames[i + 1].distFromPrev;
-                    newZ = keyFrames[i].node->z + (keyFrames[i + 1].node->z - keyFrames[i].node->z) * d / keyFrames[i + 1].distFromPrev;
+                    Player* plr = (Player*)itr->first;
 
-                    bool teleport = false;
-                    if (keyFrames[i].node->mapid != cM)
-                    {
-                        teleport = true;
-                        cM = keyFrames[i].node->mapid;
-                    }
+                    // Is this correct?
+                    if (plr->isDead() && !plr->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_GHOST))
+                        plr->ResurrectPlayer(1.0f);
 
-                    //                    sLog.outString("T: %d, D: %f, x: %f, y: %f, z: %f", t, d, newX, newY, newZ);
-                    WayPoint pos(keyFrames[i].node->mapid, newX, newY, newZ, teleport);
-                    if (teleport)
-                        m_WayPoints[t] = pos;
-                }
+                    TransportInfo* transportInfo = plr->GetTransportInfo();
+                    MANGOS_ASSERT(transportInfo);
 
-                if (tFrom < tTo)                            // caught in tFrom dock's "gravitational pull"
-                {
-                    if (tFrom <= 30000)
-                    {
-                        d = 0.5f * (tFrom / 1000) * (tFrom / 1000);
-                    }
-                    else
-                    {
-                        d = 0.5f * 30 * 30 + 30 * ((tFrom - 30000) / 1000);
-                    }
-                    d = d - keyFrames[i].distSinceStop;
+                    // Teleport passenger failed
+                    if (!plr->TeleportTo(nextMapId, transportInfo->GetLocalPositionX(), transportInfo->GetLocalPositionY(),
+                        transportInfo->GetLocalPositionZ(), transportInfo->GetLocalOrientation(), TELE_TO_NOT_LEAVE_TRANSPORT))
+                        plr->RepopAtGraveyard(); // teleport to near graveyard if on transport, looks blizz like :)
                 }
-                else
-                {
-                    if (tTo <= 30000)
-                    {
-                        d = 0.5f * (tTo / 1000) * (tTo / 1000);
-                    }
-                    else
-                    {
-                        d = 0.5f * 30 * 30 + 30 * ((tTo - 30000) / 1000);
-                    }
-                    d = keyFrames[i].distUntilStop - d;
-                }
-                t += 100;
+                //else
+                // remove WorldObject
+
+                UnBoard(itr->first);
             }
-            t -= 100;
+
+            //HACK
+            sTransportMgr.Del((GameObject*)m_owner);
+
+            // Destroy old transporter
+            ((GameObject*)m_owner)->Delete();
         }
-
-        if (keyFrames[i + 1].tFrom > keyFrames[i + 1].tTo)
-            t += 100 - ((long)keyFrames[i + 1].tTo % 100);
-        else
-            t += (long)keyFrames[i + 1].tTo % 100;
-
-        bool teleport = false;
-        if ((keyFrames[i + 1].node->actionFlag == 1) || (keyFrames[i + 1].node->mapid != keyFrames[i].node->mapid))
+        else // Same map as before
         {
-            teleport = true;
-            cM = keyFrames[i + 1].node->mapid;
+            // Reset movespline
+            delete m_moveSpline;
+            m_moveSpline = new Movement::MoveSpline();
+
+            m_currentNode = 0;
+
+            LoadTransportPath(((GameObject*)m_owner)->GetGOInfo()->moTransport.taxiPathId);
         }
-
-        WayPoint pos(keyFrames[i + 1].node->mapid, keyFrames[i + 1].node->x, keyFrames[i + 1].node->y, keyFrames[i + 1].node->z, teleport,
-                     keyFrames[i + 1].node->arrivalEventID, keyFrames[i + 1].node->departureEventID);
-
-        //        sLog.outString("T: %d, x: %f, y: %f, z: %f, t:%d", t, pos.x, pos.y, pos.z, teleport);
-
-        // if (teleport)
-        m_WayPoints[t] = pos;
-
-        t += keyFrames[i + 1].node->delay * 1000;
-        //        sLog.outString("------");
-    }
-
-    uint32 timer = t;
-
-    //    sLog.outDetail("    Generated %lu waypoints, total time %u.", (unsigned long)m_WayPoints.size(), timer);
-
-    m_next = m_WayPoints.begin();                           // will used in MoveToNextWayPoint for init m_curr
-    MoveToNextWayPoint();                                   // m_curr -> first point
-    MoveToNextWayPoint();                                   // skip first point
-
-    m_pathTime = timer;
-
-    m_nextNodeTime = m_curr->first;*/
-}
-
-void GOTransportBase::MoveToNextWayPoint()
-{
-    m_curr = m_next;
-
-    ++m_next;
-    if (m_next == m_WayPoints.end())
-        m_next = m_WayPoints.begin();
-}
-
-void GOTransportBase::DoEventIfAny(WayPointMap::value_type const& node, bool departure)
-{
-    if (uint32 eventid = departure ? node.second.departureEventID : node.second.arrivalEventID)
-    {
-        DEBUG_FILTER_LOG(LOG_FILTER_TRANSPORT_MOVES, "Taxi %s event %u of node %u of %s \"%s\") path", departure ? "departure" : "arrival", eventid, node.first, m_owner->GetGuidStr().c_str(), m_owner->GetName());
-
-        if (!sScriptMgr.OnProcessEvent(eventid, m_owner, m_owner, departure))
-            m_owner->GetMap()->ScriptsStart(sEventScripts, eventid, m_owner, m_owner);
     }
 }
 
-void GOTransportBase::TeleportTransport(uint32 newMapid, float x, float y, float z)
+void GOTransportBase::LoadTransportPath(uint32 pathId)
 {
-    // Remove transporter from old map
-    m_owner->GetMap()->Remove<GameObject>((GameObject*)m_owner, false);
+    Movement::MoveSplineInitArgs args;
+    args.flags = Movement::MoveSplineFlag(Movement::MoveSplineFlag::Catmullrom);
+    args.velocity = ((GameObject*)m_owner)->GetGOInfo()->moTransport.moveSpeed;
 
-    // we need to create and save new Map object with 'newMapid' because if not done -> lead to invalid Map object reference...
-    // player far teleport would try to create same instance, but we need it NOW for transport...
-    // correct me if I'm wrong O.o
-    Map* newMap = sMapMgr.CreateMap(newMapid, m_owner);
-    // Instancemaps are not supported currently
-    MANGOS_ASSERT(newMap);
+    TaxiPathNodeList const& path = sTransportMgr.GetTaxiPathNodeList(pathId);
+    uint32 stopDuration = 0;
 
-    // Relocate to new position
-    m_owner->Relocate(x, y, z);
-    // Add transporter to new map
-    newMap->Add<GameObject>((GameObject*)m_owner);
+    Movement::MoveSplineInitArgs args2;
+    args2.flags = Movement::MoveSplineFlag(Movement::MoveSplineFlag::Catmullrom);
+    args2.velocity = ((GameObject*)m_owner)->GetGOInfo()->moTransport.moveSpeed;
+    Movement::MoveSpline* spline2TEST = new Movement::MoveSpline();
+    uint32 stopDuration2 = 0;
 
-    for (PassengerMap::const_iterator itr = m_passengers.begin(); itr != m_passengers.end(); ++itr)
+    for (uint32 i = 0; i < path.size(); ++i)
     {
-        MANGOS_ASSERT(itr->first);
-
-        if (itr->first->GetTypeId() == TYPEID_PLAYER)
+        if (path[i].mapid == m_owner->GetMap()->GetId())
         {
-            Player* plr = (Player*)itr->first;
+            args.path.push_back(G3D::Vector3(path[i].x, path[i].y, path[i].z));
 
-            // Is this correct?
-            if (plr->isDead() && !plr->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_GHOST))
-                plr->ResurrectPlayer(1.0f);
-
-            TransportInfo* transportInfo = plr->GetTransportInfo();
-
-            MANGOS_ASSERT(transportInfo);
-
-            float rx, ry;
-            RotateLocalPosition(transportInfo->GetLocalPositionX(),
-                    transportInfo->GetLocalPositionY(), rx, ry);
-
-            // Teleport passenger failed
-            if (!plr->TeleportTo(newMapid, x + rx, y + ry, z + transportInfo->GetLocalPositionZ(),
-                    MapManager::NormalizeOrientation(m_owner->GetOrientation() + transportInfo->GetLocalOrientation()), TELE_TO_NOT_LEAVE_TRANSPORT))
+            if (path[i].arrivalEventID || path[i].delay || path[i].departureEventID)
             {
-                plr->RepopAtGraveyard(); // teleport to near graveyard if on transport, looks blizz like :)
-                UnBoard(plr);
+                stopDuration += path[i].delay * 1000; // MS Time
+                m_transportStops.insert(TransportStopMap::value_type(args.path.size() - 1,
+                    TransportStop(path[i].arrivalEventID, path[i].delay * 1000, path[i].departureEventID)));
             }
-
-            // WorldPacket data(SMSG_811, 4);
-            // data << uint32(0);
-            // plr->GetSession()->SendPacket(&data);
         }
-        //else
-        // ToDo: Add creature/gameobject relocation map1->map2
+        else
+        {
+            args2.path.push_back(G3D::Vector3(path[i].x, path[i].y, path[i].z));
+
+            if (path[i].arrivalEventID || path[i].delay || path[i].departureEventID)
+            {
+                stopDuration2 += path[i].delay * 1000; // MS Time
+                m_transportStops.insert(TransportStopMap::value_type(args2.path.size() - 1,
+                    TransportStop(path[i].arrivalEventID, path[i].delay * 1000, path[i].departureEventID)));
+            }
+        }
     }
+
+    m_moveSpline->Initialize(args);
+    spline2TEST->Initialize(args2);
+
+    DEBUG_LOG("DURATION DER STRECKE1: %i", m_moveSpline->Duration() + stopDuration);
+    DEBUG_LOG("STOPDURATION1: %u", stopDuration);
+    DEBUG_LOG("DURATION DER STRECKE2: %i", spline2TEST->Duration() + stopDuration2);
+    DEBUG_LOG("STOPDURATION2: %u", stopDuration2);
+
+    // ToDo: Set period !correctly!
+    m_owner->SetUInt32Value(GAMEOBJECT_LEVEL, m_moveSpline->Duration() + stopDuration + spline2TEST->Duration() + stopDuration2);
+
+    delete spline2TEST;
 }
 
 /* **************************************** TransportInfo ****************************************/

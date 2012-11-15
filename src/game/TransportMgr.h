@@ -21,7 +21,26 @@
 
 #include "Policies/Singleton.h"
 
+namespace G3D
+{
+    class Vector3;
+};
+
+class GOTransportBase;
+
+struct MOTransportInfo
+{
+    GameObjectInfo const* goInfo;
+    uint32 mapIds[2];
+
+    MOTransportInfo(GameObjectInfo const* _goInfo) :
+        goInfo(_goInfo) {}
+};
+
+typedef std::vector < G3D::Vector3 /*point*/ > TransportRoute;
+typedef std::map < uint32 /*mapId*/, TransportRoute /*route*/ > TransportMapRoutes;
 typedef std::set < GameObject* /*MOTransporter*/ > TransportSet;
+typedef std::map < uint32 /*goEntry*/, MOTransportInfo > TransportInfoMap;
 
 class TransportMgr
 {
@@ -29,13 +48,22 @@ class TransportMgr
         TransportMgr() {}
         ~TransportMgr();
 
-        void LoadTransports();
+        void InsertTransporter(GameObjectInfo const* goInfo);
+        void LoadTransporterForMap(Map* map);
+        void Del(GameObject* t) { m_transports.erase(t); }
 
         // ToDo: Remove this getter if possible
         TransportSet const& GetTransports() const { return m_transports; }
 
+        TransportRoute GetTransportRouteForMap(uint32 pathId, uint32 mapId);
+        TaxiPathNodeList const& GetTaxiPathNodeList(uint32 pathId);
+        uint32 GetNextMapId(uint32 goEntry, uint32 currentMapId);
+
     private:
+        void CreateTransporter(const GameObjectInfo* goInfo, Map* map, float x, float y, float z);
+
         TransportSet m_transports;
+        TransportInfoMap m_transportInfos;
 };
 
 #define sTransportMgr MaNGOS::Singleton<TransportMgr>::Instance()

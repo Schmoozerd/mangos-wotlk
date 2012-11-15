@@ -291,10 +291,14 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
                 // 0x02
                 if (updateFlags & UPDATEFLAG_TRANSPORT && ((GameObject*)this)->GetGoType() == GAMEOBJECT_TYPE_MO_TRANSPORT)
                 {
-                    *data << float(0);
-                    *data << float(0);
-                    *data << float(0);
+                    *data << float(((WorldObject*)this)->GetPositionX());
+                    *data << float(((WorldObject*)this)->GetPositionY());
+                    *data << float(((WorldObject*)this)->GetPositionZ());
                     *data << float(((WorldObject*)this)->GetOrientation());
+                    /**data << float(0);
+                    *data << float(0);
+                    *data << float(0);
+                    *data << float(((WorldObject*)this)->GetOrientation());*/
                 }
                 else
                 {
