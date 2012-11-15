@@ -2349,5 +2349,6 @@ void GameObject::InitiateTransporter(uint32 pathId)
     SetUInt16Value(GAMEOBJECT_DYNAMIC, 1, 0 /*dynamicHighValue*/);
 
     m_transportBase = new GOTransportBase(this, pathId);
-    m_updateFlag |= UPDATEFLAG_TRANSPORT | UPDATEFLAG_POSITION;
+    m_updateFlag |= UPDATEFLAG_TRANSPORT;
+    m_updateFlag &= ~UPDATEFLAG_POSITION;
 }
