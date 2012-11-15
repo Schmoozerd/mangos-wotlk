@@ -401,11 +401,7 @@ void GOTransportBase::LoadTransportPath(uint32 pathId)
             args2.path.push_back(G3D::Vector3(path[i].x, path[i].y, path[i].z));
 
             if (path[i].arrivalEventID || path[i].delay || path[i].departureEventID)
-            {
                 stopDuration2 += path[i].delay * 1000; // MS Time
-                m_transportStops.insert(TransportStopMap::value_type(args2.path.size() - 1,
-                    TransportStop(path[i].arrivalEventID, path[i].delay * 1000, path[i].departureEventID)));
-            }
         }
     }
 
