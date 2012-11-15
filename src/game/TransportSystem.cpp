@@ -283,7 +283,6 @@ void GOTransportBase::Update(uint32 diff)
 
         m_owner->GetMap()->GameObjectRelocation((GameObject*)m_owner, loc.x, loc.y, loc.z, loc.orientation);
         DETAIL_FILTER_LOG(LOG_FILTER_TRANSPORT_MOVES, "%s moved to %f %f %f %f", m_owner->GetName(), loc.x, loc.y, loc.z, loc.orientation);
-        m_owner->SummonCreature(1, loc.x, loc.y, loc.z, loc.orientation, TEMPSUMMON_TIMED_DESPAWN, 60000, true);
 
         // Update passenger positions
         UpdateGlobalPositions();
