@@ -548,17 +548,15 @@ void WorldSession::HandleMoverRelocation(MovementAndPositionInfo& movementInfo)
             // Client set MOVEFLAG_ONTRANSPORT -> Board passenger here as well
             if (movementInfo.HasMovementFlag(MOVEFLAG_ONTRANSPORT))
             {
-                for (TransportSet::const_iterator iter = sTransportMgr.GetTransports().begin(); iter != sTransportMgr.GetTransports().end(); ++iter)
+                if (GameObject* transporter = plMover->GetMap()->GetGameObject(movementInfo.GetTransportGuid()))
                 {
-                    if ((*iter)->GetObjectGuid() != movementInfo.GetTransportGuid())
-                        continue;
-
-                    /** It's considered that player and transport running in same thread context,
+                    if (GOTransportBase* transportBase = transporter->GetTransportBase())
+                    {
+                        /** It's considered that player and transport running in same thread context,
                         so it's safe to modify transport(add passenger) */
-                    (*iter)->GetTransportBase()->Board(plMover, movementInfo.GetLocalPositionX(), movementInfo.GetLocalPositionY(),
+                        transportBase->Board(plMover, movementInfo.GetLocalPositionX(), movementInfo.GetLocalPositionY(),
                                 movementInfo.GetLocalPositionZ(), movementInfo.GetLocalOrientation());
-
-                    break;
+                    }
                 }
             }
         }
