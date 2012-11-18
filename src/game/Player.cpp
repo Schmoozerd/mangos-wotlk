@@ -438,14 +438,10 @@ Player::Player(WorldSession* session): Unit(), m_mover(this), m_camera(this), m_
 
     m_atLoginFlags = AT_LOGIN_NONE;
 
-    mSemaphoreTeleport_Near = false;
-    mSemaphoreTeleport_Far = false;
-
     m_DelayedOperations = 0;
     m_bCanDelayTeleport = false;
     m_bHasDelayedTeleport = false;
     m_bHasBeenAliveAtDelayedTeleport = true;                // overwrite always at setup teleport data, so not used infact
-    m_teleport_options = 0;
 
     m_trade = NULL;
 
@@ -1388,7 +1384,7 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         pet->Unsummon(PET_SAVE_REAGENTS, this);
 
     if (IsHasDelayedTeleport())
-        TeleportTo(m_teleport_dest, m_teleport_options);
+        TeleportTo(m_teleportInfo.teleportDest, m_teleportInfo.teleportOptions, m_teleportInfo.transportGuid);
 }
 
 void Player::SetDeathState(DeathState s)
@@ -1621,15 +1617,16 @@ uint8 Player::GetChatTag() const
     return tag;
 }
 
-bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options /*=0*/, AreaTrigger const* at /*=NULL*/)
+bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options /*=0*/, AreaTrigger const* at /*=NULL*/, ObjectGuid transportGuid /*=ObjectGuid()*/)
 {
-    if (!MapManager::IsValidMapCoord(mapid, x, y, z, orientation))
+    MapEntry const* mEntry = sMapStore.LookupEntry(mapid);
+
+    // If transportGuid is valid then x, y, z and orientation are local coordinates
+    if (!mEntry || (!transportGuid && !MapManager::IsValidMapCoord(mapid, x, y, z, orientation)))
     {
         sLog.outError("TeleportTo: invalid map %d or absent instance template.", mapid);
         return false;
     }
-
-    MapEntry const* mEntry = sMapStore.LookupEntry(mapid);  // Validity checked in IsValidMapCoord
 
     // preparing unsummon pet if lost (we must get pet before teleportation or will not find it later)
     Pet* pet = GetPet();
@@ -1695,8 +1692,9 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         {
             SetSemaphoreTeleportNear(true);
             // lets save teleport destination for player
-            m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
-            m_teleport_options = options;
+            m_teleportInfo.teleportDest = WorldLocation(mapid, x, y, z, orientation);
+            m_teleportInfo.transportGuid = transportGuid;
+            m_teleportInfo.teleportOptions = options;
             return true;
         }
 
@@ -1711,7 +1709,8 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             CombatStop();
 
         // this will be used instead of the current location in SaveToDB
-        m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
+        m_teleportInfo.teleportDest = WorldLocation(mapid, x, y, z, orientation);
+        m_teleportInfo.transportGuid = transportGuid;
         SetFallInformation(0, z);
 
         // code for finish transfer called in WorldSession::HandleMovementOpcodes()
@@ -1746,8 +1745,9 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             {
                 SetSemaphoreTeleportFar(true);
                 // lets save teleport destination for player
-                m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
-                m_teleport_options = options;
+                m_teleportInfo.teleportDest = WorldLocation(mapid, x, y, z, orientation);
+                m_teleportInfo.transportGuid = transportGuid;
+                m_teleportInfo.teleportOptions = options;
                 return true;
             }
 
@@ -1804,7 +1804,8 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             if (oldmap)
                 oldmap->Remove(this, false);
 
-            m_teleport_dest = WorldLocation(mapid, x, y, z, orientation);
+            m_teleportInfo.teleportDest = WorldLocation(mapid, x, y, z, orientation);
+            m_teleportInfo.transportGuid = transportGuid;
             SetFallInformation(0, z);
             // if the player is saved before worldport ack (at logout for example)
             // this will be used instead of the current location in SaveToDB
@@ -1818,21 +1819,10 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 // transfer finished, inform client to start load
                 WorldPacket data(SMSG_NEW_WORLD, (20));
                 data << uint32(mapid);
-                if (m_transportInfo)
-                {
-                    data << float(m_transportInfo->GetLocalPositionX());
-                    data << float(m_transportInfo->GetLocalPositionY());
-                    data << float(m_transportInfo->GetLocalPositionZ());
-                    data << float(m_transportInfo->GetLocalOrientation());
-                }
-                else
-                {
-                    data << float(x);
-                    data << float(y);
-                    data << float(z);
-                    data << float(orientation);
-                }
-
+                data << float(x);
+                data << float(y);
+                data << float(z);
+                data << float(orientation);
                 GetSession()->SendPacket(&data);
                 SendSavedInstances();
             }

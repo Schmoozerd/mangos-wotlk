@@ -339,7 +339,7 @@ void GOTransportBase::Update(uint32 diff)
 
                     // Teleport passenger failed
                     if (!plr->TeleportTo(nextMapId, transportInfo->GetLocalPositionX(), transportInfo->GetLocalPositionY(),
-                        transportInfo->GetLocalPositionZ(), transportInfo->GetLocalOrientation(), TELE_TO_NOT_LEAVE_TRANSPORT))
+                        transportInfo->GetLocalPositionZ(), transportInfo->GetLocalOrientation(), 0, NULL, m_owner->GetObjectGuid()))
                         plr->RepopAtGraveyard(); // teleport to near graveyard if on transport, looks blizz like :)
                 }
                 //else

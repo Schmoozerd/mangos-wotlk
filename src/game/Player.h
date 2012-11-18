@@ -942,6 +942,20 @@ struct BGData
     bool HasTaxiPath() const { return taxiPath[0] && taxiPath[1]; }
 };
 
+struct TeleportInfo
+{
+    WorldLocation teleportDest;
+    ObjectGuid transportGuid;
+    uint32 teleportOptions;
+    bool semaphoreTeleportNear;
+    bool semaphoreTeleportFar;
+
+    TeleportInfo() :
+        teleportDest(), transportGuid(ObjectGuid()), teleportOptions(0),
+        semaphoreTeleportNear(false), semaphoreTeleportFar(false)
+        {}
+};
+
 class TradeData
 {
     public:                                                 // constructors
@@ -1013,11 +1027,11 @@ class MANGOS_DLL_SPEC Player : public Unit
         void AddToWorld() override;
         void RemoveFromWorld() override;
 
-        bool TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options = 0, AreaTrigger const* at = NULL);
+        bool TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options = 0, AreaTrigger const* at = NULL, ObjectGuid transportGuid = ObjectGuid());
 
-        bool TeleportTo(WorldLocation const& loc, uint32 options = 0)
+        bool TeleportTo(WorldLocation const& loc, uint32 options = 0, ObjectGuid transportGuid = ObjectGuid())
         {
-            return TeleportTo(loc.mapid, loc.coord_x, loc.coord_y, loc.coord_z, loc.orientation, options);
+            return TeleportTo(loc.mapid, loc.coord_x, loc.coord_y, loc.coord_z, loc.orientation, options, NULL, transportGuid);
         }
 
         bool TeleportToBGEntryPoint();
@@ -1889,12 +1903,13 @@ class MANGOS_DLL_SPEC Player : public Unit
         bool HasSkill(uint32 skill) const;
         void learnSkillRewardedSpells(uint32 id, uint32 value);
 
-        WorldLocation& GetTeleportDest() { return m_teleport_dest; }
-        bool IsBeingTeleported() const { return mSemaphoreTeleport_Near || mSemaphoreTeleport_Far; }
-        bool IsBeingTeleportedNear() const { return mSemaphoreTeleport_Near; }
-        bool IsBeingTeleportedFar() const { return mSemaphoreTeleport_Far; }
-        void SetSemaphoreTeleportNear(bool semphsetting) { mSemaphoreTeleport_Near = semphsetting; }
-        void SetSemaphoreTeleportFar(bool semphsetting) { mSemaphoreTeleport_Far = semphsetting; }
+        TeleportInfo const& GetTeleportInfo() const { return m_teleportInfo; }
+        WorldLocation& GetTeleportDest() { return m_teleportInfo.teleportDest; }
+        bool IsBeingTeleported() const { return m_teleportInfo.semaphoreTeleportNear || m_teleportInfo.semaphoreTeleportFar; }
+        bool IsBeingTeleportedNear() const { return m_teleportInfo.semaphoreTeleportNear; }
+        bool IsBeingTeleportedFar() const { return m_teleportInfo.semaphoreTeleportFar; }
+        void SetSemaphoreTeleportNear(bool semphsetting) { m_teleportInfo.semaphoreTeleportNear = semphsetting; }
+        void SetSemaphoreTeleportFar(bool semphsetting) { m_teleportInfo.semaphoreTeleportFar = semphsetting; }
         void ProcessDelayedOperations();
 
         void CheckAreaExploreAndOutdoor(void);
@@ -2599,10 +2614,7 @@ class MANGOS_DLL_SPEC Player : public Unit
         bool m_isInWater;
 
         // Current teleport data
-        WorldLocation m_teleport_dest;
-        uint32 m_teleport_options;
-        bool mSemaphoreTeleport_Near;
-        bool mSemaphoreTeleport_Far;
+        TeleportInfo m_teleportInfo;
 
         uint32 m_DelayedOperations;
         bool m_bCanDelayTeleport;
