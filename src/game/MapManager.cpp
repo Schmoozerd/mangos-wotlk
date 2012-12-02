@@ -84,7 +84,7 @@ void MapManager::InitializeVisibilityDistanceInfo()
 
 Map* MapManager::CreateMap(uint32 id, const WorldObject* obj)
 {
-    MANGOS_ASSERT(obj);
+    // MANGOS_ASSERT(obj);
     // if(!obj->IsInWorld()) sLog.outError("GetMap: called for map %d with object (typeid %d, guid %d, mapid %d, instanceid %d) who is not in world!", id, obj->GetTypeId(), obj->GetGUIDLow(), obj->GetMapId(), obj->GetInstanceId());
     Guard _guard(*this);
 
@@ -96,7 +96,7 @@ Map* MapManager::CreateMap(uint32 id, const WorldObject* obj)
 
     if (entry->Instanceable())
     {
-        MANGOS_ASSERT(obj->GetTypeId() == TYPEID_PLAYER);
+        MANGOS_ASSERT(obj && obj->GetTypeId() == TYPEID_PLAYER);
         // create DungeonMap object
         if (obj->GetTypeId() == TYPEID_PLAYER)
             m = CreateInstance(id, (Player*)obj);

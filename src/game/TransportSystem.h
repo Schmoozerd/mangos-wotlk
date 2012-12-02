@@ -63,7 +63,7 @@ class TransportBase
         void UpdateGlobalPositions();
         void UpdateGlobalPositionOf(WorldObject* passenger, float lx, float ly, float lz, float lo) const;
 
-        WorldObject* GetOwner() const { return m_owner; }
+        virtual WorldObject* GetOwner() const { return m_owner; }
         PassengerMap const& GetPassengers() const { return m_passengers; }
 
         // Helper functions to calculate positions
@@ -87,21 +87,9 @@ class TransportBase
 
 namespace Movement
 {
-    class MoveSpline;
+    struct Location;
+    template<typename length_type> class Spline;
 };
-
-struct TransportStop
-{
-    uint32 arrivalEventID;
-    uint32 delay;
-    uint32 departureEventID;
-
-    TransportStop(uint32 _arrivalEventID, uint32 _delay, uint32 _departureEventID) :
-        arrivalEventID(_arrivalEventID), delay(_delay), departureEventID(_departureEventID)
-        {}
-};
-
-typedef UNORDERED_MAP < uint32 /*pointId*/, TransportStop /*transportStop*/ > TransportStopMap;
 
 /**
  * A class to provide support for gameobject transporter.
@@ -118,13 +106,24 @@ class GOTransportBase : public TransportBase
 
         void Update(uint32 diff) override;
 
-    private:
-        void LoadTransportPath(uint32 pathId);
+        GameObject* GetOwner() const { return (GameObject*)m_owner; }
+        int32 GetPathProgress() const { return m_pathProgress; }
 
-        Movement::MoveSpline* m_moveSpline;
-        TransportStopMap m_transportStops;
+    private:
+        void LoadTransportSpline();
+        void UpdateTransportSpline(uint32 diff);
+
+        TaxiPathNodeEntry const& GetCurrentNode();
+        Movement::Location ComputePosition();
+
+        Movement::Spline<int32> const* m_transportSpline;
         uint32 m_transportStopTimer;
         uint32 m_currentNode;
+
+        int32 m_pointIdx;
+        int32 m_timePassed;
+        int32 m_pathProgress;
+        bool m_bArrived;
 };
 
 /**

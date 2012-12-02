@@ -56,7 +56,7 @@ void WorldSession::HandleMoveWorldportAckOpcode()
     MapEntry const* mEntry = sMapStore.LookupEntry(teleportInfo.teleportDest.mapid);
 
     // possible errors in the coordinate validity check (only cheating case possible)
-    if (!mEntry || (!teleportInfo.transportGuid && !MapManager::IsValidMapCoord(teleportInfo.teleportDest.mapid,
+    if (!mEntry || (!teleportInfo.transportEntry && !MapManager::IsValidMapCoord(teleportInfo.teleportDest.mapid,
         teleportInfo.teleportDest.coord_x, teleportInfo.teleportDest.coord_y, teleportInfo.teleportDest.coord_z, teleportInfo.teleportDest.orientation)))
     {
         sLog.outError("WorldSession::HandleMoveWorldportAckOpcode: %s was teleported far to a not valid location "
@@ -110,9 +110,9 @@ void WorldSession::HandleMoveWorldportAckOpcode()
     if (!map)
         map = sMapMgr.CreateMap(teleportInfo.teleportDest.mapid, GetPlayer());
 
-    if (teleportInfo.transportGuid)
+    if (teleportInfo.transportEntry)
     {
-        GameObject* transporter = map->GetGameObject(teleportInfo.transportGuid);
+        GameObject* transporter = map->GetGameObject(sTransportMgr.GetTransportGuid(teleportInfo.transportEntry));
         GOTransportBase* transportBase = (transporter) ? transporter->GetTransportBase() : NULL;
 
         // Board player to new transporter
@@ -128,14 +128,12 @@ void WorldSession::HandleMoveWorldportAckOpcode()
         }
         else // teleport back home
         {
-            DETAIL_LOG("WorldSession::HandleMoveWorldportAckOpcode: %s was teleported to transporter %s "
+            DETAIL_LOG("WorldSession::HandleMoveWorldportAckOpcode: %s was teleported to transport with entry %u "
                        " (map:%u, x:%f, y:%f, z:%f) but could not get boarded. Teleporting him to his homebind place...",
-                       GetPlayer()->GetGuidStr().c_str(), teleportInfo.transportGuid.GetString().c_str(), teleportInfo.teleportDest.mapid,
+                       GetPlayer()->GetGuidStr().c_str(), teleportInfo.transportEntry, teleportInfo.teleportDest.mapid,
                        teleportInfo.teleportDest.coord_x, teleportInfo.teleportDest.coord_y, teleportInfo.teleportDest.coord_z);
 
-            GetPlayer()->SetSemaphoreTeleportFar(false);
             GetPlayer()->TeleportToHomebind();
-
             return;
         }
     }
@@ -264,9 +262,9 @@ void WorldSession::HandleMoveTeleportAckOpcode(WorldPacket& recv_data)
 
     TeleportInfo const& teleportInfo = plMover->GetTeleportInfo();
 
-    if (teleportInfo.transportGuid)
+    if (teleportInfo.transportEntry)
     {
-        GameObject* transporter = plMover->GetMap()->GetGameObject(teleportInfo.transportGuid);
+        GameObject* transporter = plMover->GetMap()->GetGameObject(sTransportMgr.GetTransportGuid(teleportInfo.transportEntry));
         GOTransportBase* transportBase = (transporter) ? transporter->GetTransportBase() : NULL;
 
         // Board player to new transporter

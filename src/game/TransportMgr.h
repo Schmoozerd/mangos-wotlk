@@ -21,26 +21,41 @@
 
 #include "Policies/Singleton.h"
 
-namespace G3D
+namespace Movement
 {
-    class Vector3;
+    template<typename length_type> class Spline;
 };
 
 class GOTransportBase;
 
-struct MOTransportInfo
+typedef std::map < uint32 /*mapId*/, Movement::Spline<int32>* > TransportSplineMap;
+typedef std::set < GameObject* /*MOTransporter*/ > TransportSet;
+
+struct StaticTransportInfo
 {
     GameObjectInfo const* goInfo;
-    uint32 mapIds[2];
+    TransportSplineMap splines;
+    uint32 period;
 
-    MOTransportInfo(GameObjectInfo const* _goInfo) :
-        goInfo(_goInfo) {}
+    StaticTransportInfo(GameObjectInfo const* _goInfo) :
+        goInfo(_goInfo), period(0) {}
 };
 
-typedef std::vector < G3D::Vector3 /*point*/ > TransportRoute;
-typedef std::map < uint32 /*mapId*/, TransportRoute /*route*/ > TransportMapRoutes;
-typedef std::set < GameObject* /*MOTransporter*/ > TransportSet;
-typedef std::map < uint32 /*goEntry*/, MOTransportInfo > TransportInfoMap;
+struct DynamicTransportInfo
+{
+    ObjectGuid transportGuid;
+    uint32 currentMapId; // ToDo: There is probably an issue with instance transports
+
+    // Standard constructor for std::map usage
+    DynamicTransportInfo() :
+        transportGuid(ObjectGuid()), currentMapId(0) {}
+
+    DynamicTransportInfo(ObjectGuid _transportGuid, uint32 _currentMapId) :
+        transportGuid(_transportGuid), currentMapId(_currentMapId) {}
+};
+
+typedef std::map < uint32 /*goEntry*/, StaticTransportInfo > StaticTransportInfoMap;
+typedef std::map < uint32 /*goEntry*/, DynamicTransportInfo > DynamicTransportInfoMap;
 
 class TransportMgr
 {
@@ -49,21 +64,24 @@ class TransportMgr
         ~TransportMgr();
 
         void InsertTransporter(GameObjectInfo const* goInfo);
-        void LoadTransporterForMap(Map* map);
-        void Del(GameObject* t) { m_transports.erase(t); }
+        void InitializeTransporters();
 
-        // ToDo: Remove this getter if possible
+        void LoadTransporterForInstanceMap(Map* map);
+        void ReachedLastWaypoint(GOTransportBase const* transportBase);
+
+        // HACK: REMOVE DAT!
         TransportSet const& GetTransports() const { return m_transports; }
 
-        TransportRoute GetTransportRouteForMap(uint32 pathId, uint32 mapId);
+        Movement::Spline<int32> const* GetTransportSpline(uint32 goEntry, uint32 mapId);
         TaxiPathNodeList const& GetTaxiPathNodeList(uint32 pathId);
-        uint32 GetNextMapId(uint32 goEntry, uint32 currentMapId);
+        ObjectGuid GetTransportGuid(uint32 entry);
 
     private:
-        void CreateTransporter(const GameObjectInfo* goInfo, Map* map, float x, float y, float z);
+        GameObject* CreateTransporter(const GameObjectInfo* goInfo, Map* map, float x, float y, float z, uint32 period);
 
         TransportSet m_transports;
-        TransportInfoMap m_transportInfos;
+        StaticTransportInfoMap m_staticTransportInfos;
+        DynamicTransportInfoMap m_dynamicTransportInfos;
 };
 
 #define sTransportMgr MaNGOS::Singleton<TransportMgr>::Instance()

@@ -945,13 +945,13 @@ struct BGData
 struct TeleportInfo
 {
     WorldLocation teleportDest;
-    ObjectGuid transportGuid;
+    uint32 transportEntry;
     uint32 teleportOptions;
     bool semaphoreTeleportNear;
     bool semaphoreTeleportFar;
 
     TeleportInfo() :
-        teleportDest(), transportGuid(ObjectGuid()), teleportOptions(0),
+        teleportDest(), transportEntry(0), teleportOptions(0),
         semaphoreTeleportNear(false), semaphoreTeleportFar(false)
         {}
 };
@@ -1027,11 +1027,11 @@ class MANGOS_DLL_SPEC Player : public Unit
         void AddToWorld() override;
         void RemoveFromWorld() override;
 
-        bool TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options = 0, AreaTrigger const* at = NULL, ObjectGuid transportGuid = ObjectGuid());
+        bool TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options = 0, AreaTrigger const* at = NULL, uint32 transportEntry = 0);
 
-        bool TeleportTo(WorldLocation const& loc, uint32 options = 0, ObjectGuid transportGuid = ObjectGuid())
+        bool TeleportTo(WorldLocation const& loc, uint32 options = 0, uint32 transportEntry = 0)
         {
-            return TeleportTo(loc.mapid, loc.coord_x, loc.coord_y, loc.coord_z, loc.orientation, options, NULL, transportGuid);
+            return TeleportTo(loc.mapid, loc.coord_x, loc.coord_y, loc.coord_z, loc.orientation, options, NULL, transportEntry);
         }
 
         bool TeleportToBGEntryPoint();

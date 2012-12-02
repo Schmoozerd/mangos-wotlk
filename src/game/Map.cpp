@@ -101,7 +101,7 @@ Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode)
     m_persistentState->SetUsedByMapState(this);
 
     // Load transporter
-    sTransportMgr.LoadTransporterForMap(this);
+    sTransportMgr.LoadTransporterForInstanceMap(this);
 }
 
 void Map::InitVisibilityDistance()

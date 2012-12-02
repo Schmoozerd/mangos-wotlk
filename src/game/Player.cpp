@@ -1384,7 +1384,7 @@ void Player::Update(uint32 update_diff, uint32 p_time)
         pet->Unsummon(PET_SAVE_REAGENTS, this);
 
     if (IsHasDelayedTeleport())
-        TeleportTo(m_teleportInfo.teleportDest, m_teleportInfo.teleportOptions, m_teleportInfo.transportGuid);
+        TeleportTo(m_teleportInfo.teleportDest, m_teleportInfo.teleportOptions, m_teleportInfo.transportEntry);
 }
 
 void Player::SetDeathState(DeathState s)
@@ -1617,12 +1617,12 @@ uint8 Player::GetChatTag() const
     return tag;
 }
 
-bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options /*=0*/, AreaTrigger const* at /*=NULL*/, ObjectGuid transportGuid /*=ObjectGuid()*/)
+bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options /*=0*/, AreaTrigger const* at /*=NULL*/, uint32 transportEntry /*=0*/)
 {
     MapEntry const* mEntry = sMapStore.LookupEntry(mapid);
 
-    // If transportGuid is valid then x, y, z and orientation are local coordinates
-    if (!mEntry || (!transportGuid && !MapManager::IsValidMapCoord(mapid, x, y, z, orientation)))
+    // If transportEntry is valid then x, y, z and orientation are local coordinates
+    if (!mEntry || (!transportEntry && !MapManager::IsValidMapCoord(mapid, x, y, z, orientation)))
     {
         sLog.outError("TeleportTo: invalid map %d or absent instance template.", mapid);
         return false;
@@ -1693,7 +1693,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
             SetSemaphoreTeleportNear(true);
             // lets save teleport destination for player
             m_teleportInfo.teleportDest = WorldLocation(mapid, x, y, z, orientation);
-            m_teleportInfo.transportGuid = transportGuid;
+            m_teleportInfo.transportEntry = transportEntry;
             m_teleportInfo.teleportOptions = options;
             return true;
         }
@@ -1710,7 +1710,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
 
         // this will be used instead of the current location in SaveToDB
         m_teleportInfo.teleportDest = WorldLocation(mapid, x, y, z, orientation);
-        m_teleportInfo.transportGuid = transportGuid;
+        m_teleportInfo.transportEntry = transportEntry;
         SetFallInformation(0, z);
 
         // code for finish transfer called in WorldSession::HandleMovementOpcodes()
@@ -1746,7 +1746,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 SetSemaphoreTeleportFar(true);
                 // lets save teleport destination for player
                 m_teleportInfo.teleportDest = WorldLocation(mapid, x, y, z, orientation);
-                m_teleportInfo.transportGuid = transportGuid;
+                m_teleportInfo.transportEntry = transportEntry;
                 m_teleportInfo.teleportOptions = options;
                 return true;
             }
@@ -1792,9 +1792,9 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 // send transfer packet to display load screen
                 WorldPacket data(SMSG_TRANSFER_PENDING, (4 + 4 + 4));
                 data << uint32(mapid);
-                if (m_transportInfo)
+                if (transportEntry)
                 {
-                    data << uint32(m_transportInfo->GetTransport()->GetEntry());
+                    data << uint32(transportEntry);
                     data << uint32(GetMapId());
                 }
                 GetSession()->SendPacket(&data);
@@ -1805,7 +1805,7 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 oldmap->Remove(this, false);
 
             m_teleportInfo.teleportDest = WorldLocation(mapid, x, y, z, orientation);
-            m_teleportInfo.transportGuid = transportGuid;
+            m_teleportInfo.transportEntry = transportEntry;
             SetFallInformation(0, z);
             // if the player is saved before worldport ack (at logout for example)
             // this will be used instead of the current location in SaveToDB

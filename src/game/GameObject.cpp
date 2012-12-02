@@ -145,12 +145,7 @@ bool GameObject::Create(uint32 guidlow, uint32 name_id, Map* map, uint32 phaseMa
         return false;
     }
 
-    if (goinfo->type == GAMEOBJECT_TYPE_MO_TRANSPORT)
-    {
-        Object::_Create(guidlow, 0, HIGHGUID_MO_TRANSPORT);
-    }
-    else
-        Object::_Create(guidlow, goinfo->id, HIGHGUID_GAMEOBJECT);
+    Object::_Create(guidlow, goinfo->id, goinfo->type == GAMEOBJECT_TYPE_MO_TRANSPORT ? HIGHGUID_MO_TRANSPORT : HIGHGUID_GAMEOBJECT);
 
     m_goInfo = goinfo;
 

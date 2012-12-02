@@ -32,7 +32,7 @@
 #include "Vehicle.h"
 #include "MapManager.h"
 #include "TransportMgr.h"
-#include "./movement/MoveSpline.h"
+#include "movement/MoveSpline.h"
 
 /* **************************************** TransportBase ****************************************/
 
@@ -189,16 +189,18 @@ void TransportBase::UnBoardPassenger(WorldObject* passenger)
 
 GOTransportBase::GOTransportBase(GameObject* owner, uint32 pathId) :
     TransportBase(owner),
-    m_moveSpline(new Movement::MoveSpline()),
     m_transportStopTimer(0),
-    m_currentNode(0)
+    m_currentNode(0),
+    m_pointIdx(0),
+    m_timePassed(0),
+    m_pathProgress(0),
+    m_bArrived(false)
 {
-    LoadTransportPath(pathId);
+    LoadTransportSpline();
 }
 
 GOTransportBase::~GOTransportBase()
 {
-    delete m_moveSpline;
 }
 
 bool GOTransportBase::Board(WorldObject* passenger, float lx, float ly, float lz, float lo)
@@ -243,6 +245,11 @@ bool GOTransportBase::UnBoard(WorldObject* passenger)
 
 void GOTransportBase::Update(uint32 diff)
 {
+    if (m_bArrived)
+        return;
+
+    m_pathProgress += diff;
+
     if (m_transportStopTimer)
     {
         if (m_transportStopTimer < diff)
@@ -250,9 +257,9 @@ void GOTransportBase::Update(uint32 diff)
             m_transportStopTimer = 0;
 
             // Handle departure event
-            //TransportStopMap::const_iterator itr = m_transportStops.find(m_currentNode);
+            //TaxiPathNodeEntry const& node = GetCurrentNode();
 
-            //if (itr != m_transportStops.end())
+            //if (node.departureEventID)
                 //DoEventIfAny(player, m_currentNode, departureEvent);
         }
         else
@@ -262,24 +269,17 @@ void GOTransportBase::Update(uint32 diff)
         }
     }
 
+    UpdateTransportSpline(diff);
+
     enum
     {
         POSITION_UPDATE_DELAY = 400,
     };
 
-    if (m_moveSpline->Finalized())
-        return;
-
-    m_moveSpline->updateState(diff);
-    bool arrived = m_moveSpline->Finalized();
-
-    if (arrived)
-        m_moveSpline->_Interrupt();
-
-    if (m_updatePositionsTimer < diff || arrived)
+    if (m_updatePositionsTimer < diff || m_bArrived)
     {
         m_updatePositionsTimer = POSITION_UPDATE_DELAY;
-        Movement::Location loc = m_moveSpline->ComputePosition();
+        Movement::Location loc = ComputePosition();
 
         m_owner->GetMap()->GameObjectRelocation((GameObject*)m_owner, loc.x, loc.y, loc.z, loc.orientation);
         DETAIL_FILTER_LOG(LOG_FILTER_TRANSPORT_MOVES, "%s moved to %f %f %f %f", m_owner->GetName(), loc.x, loc.y, loc.z, loc.orientation);
@@ -290,7 +290,7 @@ void GOTransportBase::Update(uint32 diff)
     else
         m_updatePositionsTimer -= diff;
 
-    uint32 pointId = (uint32)m_moveSpline->currentPathIdx();
+    uint32 pointId = (uint32)m_pointIdx - m_transportSpline->first() + (int)m_bArrived;
     if (pointId > m_currentNode)
     {
         do
@@ -298,12 +298,14 @@ void GOTransportBase::Update(uint32 diff)
             ++m_currentNode;
 
             // Handle arrival event
-            TransportStopMap::const_iterator itr = m_transportStops.find(m_currentNode);
+            TaxiPathNodeEntry const& node = GetCurrentNode();
 
-            if (itr != m_transportStops.end())
-            {
+            //if (node.arrivalEventID)
                 //DoEventIfAny(player, m_currentNode, arrivalEvent);
-                m_transportStopTimer = itr->second.delay;
+
+            if (node.delay)
+            {
+                m_transportStopTimer = node.delay * 1000;
                 break;
             }
 
@@ -314,60 +316,71 @@ void GOTransportBase::Update(uint32 diff)
     }
 
     // Last waypoint is reached
-    if (arrived)
+    if (m_bArrived)
+        sTransportMgr.ReachedLastWaypoint(this);
+}
+
+void GOTransportBase::LoadTransportSpline()
+{
+    // ToDo: Handle elevators and similar
+    MANGOS_ASSERT(m_owner->GetObjectGuid().IsMOTransport());
+
+    m_transportSpline = sTransportMgr.GetTransportSpline(m_owner->GetEntry(), m_owner->GetMap()->GetId());
+    MANGOS_ASSERT(m_transportSpline);
+
+    m_pointIdx = m_transportSpline->first();
+}
+
+void GOTransportBase::UpdateTransportSpline(uint32 diff)
+{
+    m_timePassed += diff;
+
+    if (m_timePassed >= m_transportSpline->length(m_pointIdx + 1))
     {
-        uint32 nextMapId = sTransportMgr.GetNextMapId(m_owner->GetEntry(), m_owner->GetMap()->GetId());
-
-        /* Teleport player passengers to the next map,
-           and destroy the transporter and it's other passengers */
-        if (nextMapId != m_owner->GetMap()->GetId())
+        ++m_pointIdx;
+        if (m_pointIdx >= m_transportSpline->last())
         {
-            for (PassengerMap::const_iterator itr = m_passengers.begin(); itr != m_passengers.end(); itr = m_passengers.begin())
+            if (m_transportSpline->isCyclic())
             {
-                MANGOS_ASSERT(itr->first);
-
-                if (itr->first->GetTypeId() == TYPEID_PLAYER)
-                {
-                    Player* plr = (Player*)itr->first;
-
-                    // Is this correct?
-                    if (plr->isDead() && !plr->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_GHOST))
-                        plr->ResurrectPlayer(1.0f);
-
-                    TransportInfo* transportInfo = plr->GetTransportInfo();
-                    MANGOS_ASSERT(transportInfo);
-
-                    // Teleport passenger failed
-                    if (!plr->TeleportTo(nextMapId, transportInfo->GetLocalPositionX(), transportInfo->GetLocalPositionY(),
-                        transportInfo->GetLocalPositionZ(), transportInfo->GetLocalOrientation(), 0, NULL, m_owner->GetObjectGuid()))
-                        plr->RepopAtGraveyard(); // teleport to near graveyard if on transport, looks blizz like :)
-                }
-                //else
-                // remove WorldObject
-
-                UnBoard(itr->first);
+                m_currentNode = 0;
+                m_pointIdx = m_transportSpline->first();
+                m_timePassed = m_timePassed % m_transportSpline->length();
             }
-
-            //HACK
-            sTransportMgr.Del((GameObject*)m_owner);
-
-            // Destroy old transporter
-            ((GameObject*)m_owner)->Delete();
-        }
-        else // Same map as before
-        {
-            // Reset movespline
-            delete m_moveSpline;
-            m_moveSpline = new Movement::MoveSpline();
-
-            m_currentNode = 0;
-
-            LoadTransportPath(((GameObject*)m_owner)->GetGOInfo()->moTransport.taxiPathId);
+            else // Arrived
+            {
+                m_bArrived = true;
+                m_pointIdx = m_transportSpline->last() - 1;
+                m_timePassed = m_transportSpline->length();
+            }
         }
     }
 }
 
-void GOTransportBase::LoadTransportPath(uint32 pathId)
+TaxiPathNodeEntry const& GOTransportBase::GetCurrentNode()
+{
+    TaxiPathNodeList const& path = sTransportMgr.GetTaxiPathNodeList(((GameObject*)m_owner)->GetGOInfo()->moTransport.taxiPathId);
+    MANGOS_ASSERT(m_currentNode < path.size() && "Current node doesn't exist in transport path.");
+
+    return path[m_currentNode];
+}
+
+Movement::Location GOTransportBase::ComputePosition()
+{
+    float u = 1.f;
+    int32 seg_time = m_transportSpline->length(m_pointIdx, m_pointIdx + 1);
+    if (seg_time > 0)
+        u = (m_timePassed - m_transportSpline->length(m_pointIdx)) / (float)seg_time;
+    Movement::Location c;
+    m_transportSpline->evaluate_percent(m_pointIdx, u, c);
+
+    G3D::Vector3 hermite;
+    m_transportSpline->evaluate_derivative(m_pointIdx, u, hermite);
+    c.orientation = atan2(hermite.y, hermite.x);
+
+    return c;
+}
+
+/*void GOTransportBase::LoadTransportPath(uint32 pathId)
 {
     Movement::MoveSplineInitArgs args;
     args.flags = Movement::MoveSplineFlag(Movement::MoveSplineFlag::Catmullrom);
@@ -416,7 +429,7 @@ void GOTransportBase::LoadTransportPath(uint32 pathId)
     m_owner->SetUInt32Value(GAMEOBJECT_LEVEL, m_moveSpline->Duration() + stopDuration + spline2TEST->Duration() + stopDuration2);
 
     delete spline2TEST;
-}
+}*/
 
 /* **************************************** TransportInfo ****************************************/
 
