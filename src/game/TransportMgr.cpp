@@ -267,12 +267,5 @@ GameObject* TransportMgr::CreateTransporter(const GameObjectInfo* goInfo, Map* m
     // Insert / Overwrite dynamic transport data
     m_dynamicTransportInfos[goInfo->id] = DynamicTransportInfo(transporter->GetObjectGuid(), map->GetId());
 
-    /*std::pair<DynamicTransportInfoMap::iterator, bool> itr = m_dynamicTransportInfos.insert(DynamicTransportInfoMap::value_type(goInfo->id,
-        DynamicTransportInfo(transporter->GetObjectGuid(), map->GetId())));
-    // Overwrite if necessary
-    if (!itr.second)
-        itr.first->second = DynamicTransportInfoMap::value_type(goInfo->id,
-            DynamicTransportInfo(transporter->GetObjectGuid(), map->GetId())).second;*/
-
     return transporter;
 }
