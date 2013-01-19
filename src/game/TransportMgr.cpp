@@ -200,6 +200,10 @@ void TransportMgr::ReachedLastWaypoint(GOTransportBase const* transportBase)
             ++passengerItr;
     }
 
+#ifdef DEBUG_SHOW_MOT_WAYPOINTS
+    transportBase->GetOwner()->GetMap()->MonsterYellToMap(GetCreatureTemplateStore(1), 42, 0, NULL);
+#endif
+
     // Destroy old transporter
     transportBase->GetOwner()->Delete();
 }
@@ -269,6 +273,21 @@ GameObject* TransportMgr::CreateTransporter(const GameObjectInfo* goInfo, Map* m
     map->Add<GameObject>(transporter);
     // Insert / Overwrite dynamic transport data
     m_dynamicTransportInfos[goInfo->id] = DynamicTransportInfo(transporter->GetObjectGuid(), map->GetId());
+
+#ifdef DEBUG_SHOW_MOT_WAYPOINTS
+    // Debug helper, view waypoints
+    TaxiPathNodeList const& path = GetTaxiPathNodeList(goInfo->moTransport.taxiPathId);
+    for (uint32 i = 0; i < path.size(); ++i)
+    {
+        if (path[i].mapid != map->GetId())
+            continue;
+
+        if (Creature* pSummoned = transporter->SummonCreature(1, path[i].x, path[i].y, path[i].z + 30.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, period, true))
+            pSummoned->SetObjectScale(1.0f + (path.size() - i) * 1.0f);
+    }
+    // Debug helper, yell a bit
+    map->MonsterYellToMap(GetCreatureTemplateStore(1), 41, 0, NULL);
+#endif
 
     return transporter;
 }

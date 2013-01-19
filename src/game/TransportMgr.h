@@ -21,6 +21,9 @@
 
 #include "Policies/Singleton.h"
 
+// Use this while developing for MOTs
+#define DEBUG_SHOW_MOT_WAYPOINTS
+
 namespace Movement
 {
     template<typename length_type> class Spline;

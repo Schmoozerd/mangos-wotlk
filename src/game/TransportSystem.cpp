@@ -310,6 +310,10 @@ void GOTransportBase::Update(uint32 diff)
             //if (node.arrivalEventID)
                 //DoEventIfAny(player, m_currentNode, arrivalEvent);
 
+#ifdef DEBUG_SHOW_MOT_WAYPOINTS
+            m_owner->GetMap()->MonsterYellToMap(GetCreatureTemplateStore(1), 238, 0, NULL);
+#endif
+
             if (node.delay)
             {
                 m_transportStopTimer = node.delay * 1000;
