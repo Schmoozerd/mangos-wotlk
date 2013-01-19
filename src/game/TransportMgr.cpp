@@ -148,6 +148,8 @@ void TransportMgr::LoadTransporterForInstanceMap(Map* map)
 
 void TransportMgr::ReachedLastWaypoint(GOTransportBase const* transportBase)
 {
+    DEBUG_LOG("TransportMgr Transporter %u reached last waypoint on map %u", transportBase->GetOwner()->GetEntry(), transportBase->GetOwner()->GetMapId());
+
     MANGOS_ASSERT(transportBase && transportBase->GetOwner()->GetObjectGuid().IsMOTransport());
 
     StaticTransportInfoMap::const_iterator staticInfo = m_staticTransportInfos.find(transportBase->GetOwner()->GetEntry());
@@ -160,7 +162,11 @@ void TransportMgr::ReachedLastWaypoint(GOTransportBase const* transportBase)
     if (dynInfo == staticInfo->second.splines.end())
         dynInfo = staticInfo->second.splines.begin();
 
-    MANGOS_ASSERT(dynInfo->first != transportBase->GetOwner()->GetMapId() && "The next mapId for the MOTransporter would be the same as the current.");
+    // Transporter that only move on one map don't need multi-map teleportation
+    if (dynInfo->first == transportBase->GetOwner()->GetMapId())
+        return;
+
+    DEBUG_LOG("TransportMgr Transporter %u teleport to map %u", transportBase->GetOwner()->GetEntry(), dynInfo->first);
 
     // ToDo: Maybe it's better to load all continental maps on server startup directly and use sMapMgr.FindMap() here instead
     Map* nextMap = sMapMgr.CreateMap(dynInfo->first, NULL);
