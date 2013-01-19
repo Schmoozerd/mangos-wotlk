@@ -116,12 +116,6 @@ void TransportMgr::InitializeTransporters()
         Map* continentalMap = sMapMgr.CreateMap(mapEntry->MapID, NULL);
         MANGOS_ASSERT(continentalMap);
 
-        /*if (!continentalMap)
-        {
-            sLog.outError("Continental map %u is not loaded so transporter %u could not be created.", mapEntry->MapID, itr->second.goInfo->id);
-            continue;
-        }*/
-
         G3D::Vector3 const& startPos = itr2->second->getPoint(itr2->second->first());
         CreateTransporter(itr->second.goInfo, continentalMap, startPos.x, startPos.y, startPos.z, itr->second.period);
     }

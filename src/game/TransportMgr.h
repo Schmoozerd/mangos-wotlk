@@ -28,20 +28,21 @@ namespace Movement
 
 class GOTransportBase;
 
-typedef std::map < uint32 /*mapId*/, Movement::Spline<int32>* > TransportSplineMap;
-typedef std::set < GameObject* /*MOTransporter*/ > TransportSet;
+typedef std::map < uint32 /*mapId*/, Movement::Spline<int32>* > TransportSplineMap; // Waypoint path in mapId
+typedef std::set < GameObject* /*MOTransporter*/ > TransportSet;                    // Storage of current transporters TODO Get rid of pointer?
 
-struct StaticTransportInfo
+struct StaticTransportInfo                                                          // Static information for each transporter
 {
-    GameObjectInfo const* goInfo;
-    TransportSplineMap splines;
-    uint32 period;
+    GameObjectInfo const* goInfo;                                                   // goInfo
+    TransportSplineMap splines;                                                     // Waypoints
+    uint32 period;                                                                  // period for one circle
 
     StaticTransportInfo(GameObjectInfo const* _goInfo) :
         goInfo(_goInfo), period(0) {}
 };
 
-struct DynamicTransportInfo
+// Track on which map a multi-map transport currently is
+struct DynamicTransportInfo                                                         // Class for what exactly, actually we only need to track the muli-map transports, rest is easy
 {
     ObjectGuid transportGuid;
     uint32 currentMapId; // ToDo: There is probably an issue with instance transports
@@ -54,27 +55,27 @@ struct DynamicTransportInfo
         transportGuid(_transportGuid), currentMapId(_currentMapId) {}
 };
 
-typedef std::map < uint32 /*goEntry*/, StaticTransportInfo > StaticTransportInfoMap;
-typedef std::map < uint32 /*goEntry*/, DynamicTransportInfo > DynamicTransportInfoMap;
+typedef std::map < uint32 /*goEntry*/, StaticTransportInfo > StaticTransportInfoMap; // Static data by go-entry
+typedef std::map < uint32 /*goEntry*/, DynamicTransportInfo > DynamicTransportInfoMap; // dynamic data by go-entry
 
-class TransportMgr
+class TransportMgr                                          // Mgr to hold static data and manage multi-map transports
 {
     public:
         TransportMgr() {}
         ~TransportMgr();
 
-        void InsertTransporter(GameObjectInfo const* goInfo);
-        void InitializeTransporters();
+        void InsertTransporter(GameObjectInfo const* goInfo); // Called on GO-Loading, creates static data for this go
+        void InitializeTransporters();                      // Called from World. Starts Transporters on Continents
 
-        void LoadTransporterForInstanceMap(Map* map);
-        void ReachedLastWaypoint(GOTransportBase const* transportBase);
+        void LoadTransporterForInstanceMap(Map* map);       // Called in Map constructor
+        void ReachedLastWaypoint(GOTransportBase const* transportBase); // Called by GOTransportBase::Update when last waypoint is reached. Will trigger action for passengers
 
         // HACK: REMOVE DAT!
         TransportSet const& GetTransports() const { return m_transports; }
 
-        Movement::Spline<int32> const* GetTransportSpline(uint32 goEntry, uint32 mapId);
+        Movement::Spline<int32> const* GetTransportSpline(uint32 goEntry, uint32 mapId);    // Get Static Waypoint Data for a transporter and map
         TaxiPathNodeList const& GetTaxiPathNodeList(uint32 pathId);
-        ObjectGuid GetTransportGuid(uint32 entry);
+        ObjectGuid GetTransportGuid(uint32 entry);                                          // Get guid of current transporter
 
     private:
         GameObject* CreateTransporter(const GameObjectInfo* goInfo, Map* map, float x, float y, float z, uint32 period);
@@ -85,4 +86,5 @@ class TransportMgr
 };
 
 #define sTransportMgr MaNGOS::Singleton<TransportMgr>::Instance()
+
 #endif

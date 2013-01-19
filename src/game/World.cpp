@@ -1403,8 +1403,8 @@ void World::SetInitialWorldSettings()
     sOutdoorPvPMgr.InitOutdoorPvP();
 
     ///- Initialize Massive object transports
-    sLog.outString("Loading MOTransports...");
-    sTransportMgr.InitializeTransporters();
+    sLog.outString("Loading MOTransports...");              // Must be after loading Gameobject Template
+    sTransportMgr.InitializeTransporters();                 // NOTE: This will load some or all continent maps
 
     sLog.outString("Deleting expired bans...");
     LoginDatabase.Execute("DELETE FROM ip_banned WHERE unbandate<=UNIX_TIMESTAMP() AND unbandate<>bandate");
