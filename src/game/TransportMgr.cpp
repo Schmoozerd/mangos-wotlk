@@ -89,6 +89,7 @@ void TransportMgr::InsertTransporter(GameObjectInfo const* goInfo)
         transportInfo.splines[itr->first] = transportSpline;
     }
 
+    // Note, this uses the copy-constructor for transportInfo, must be evaluated if using new and pointer is better choide
     m_staticTransportInfos.insert(StaticTransportInfoMap::value_type(goInfo->id, transportInfo));
 }
 
@@ -101,7 +102,6 @@ void TransportMgr::InitializeTransporters()
         MANGOS_ASSERT(itr2 != itr->second.splines.end());
 
         MapEntry const* mapEntry = sMapStore.LookupEntry(itr2->first);
-
         if (!mapEntry)
         {
             sLog.outError("Transporter could not be created because of an invalid mapId. Check DBC files.");
@@ -131,7 +131,7 @@ void TransportMgr::LoadTransporterForInstanceMap(Map* map)
 
     for (StaticTransportInfoMap::const_iterator itr = m_staticTransportInfos.begin(); itr != m_staticTransportInfos.end(); ++itr)
     {
-        // Instance transporter must be always in one map
+        // Instance transporter must be always in one map. Note: This iterates over all transporters, hence we must check this way
         if (itr->second.splines.size() == 1)
         {
             TransportSplineMap::const_iterator itr2 = itr->second.splines.find(map->GetId());
@@ -150,35 +150,35 @@ void TransportMgr::ReachedLastWaypoint(GOTransportBase const* transportBase)
 {
     MANGOS_ASSERT(transportBase && transportBase->GetOwner()->GetObjectGuid().IsMOTransport());
 
-    StaticTransportInfoMap::const_iterator itr = m_staticTransportInfos.find(transportBase->GetOwner()->GetEntry());
-    MANGOS_ASSERT(itr != m_staticTransportInfos.end());
+    StaticTransportInfoMap::const_iterator staticInfo = m_staticTransportInfos.find(transportBase->GetOwner()->GetEntry());
+    MANGOS_ASSERT(staticInfo != m_staticTransportInfos.end());
 
-    TransportSplineMap::const_iterator itr2 = itr->second.splines.find(transportBase->GetOwner()->GetMapId());
-    MANGOS_ASSERT(itr2 != itr->second.splines.end() && "This MOTransporter should never be created in it's current map.");
+    TransportSplineMap::const_iterator dynInfo = staticInfo->second.splines.find(transportBase->GetOwner()->GetMapId());
+    MANGOS_ASSERT(dynInfo != staticInfo->second.splines.end() && "This MOTransporter should never be created in it's current map.");
 
-    ++itr2;
-    if (itr2 == itr->second.splines.end())
-        itr2 = itr->second.splines.begin();
+    ++dynInfo;
+    if (dynInfo == staticInfo->second.splines.end())
+        dynInfo = staticInfo->second.splines.begin();
 
-    MANGOS_ASSERT(itr2->first != transportBase->GetOwner()->GetMapId() && "The next mapId for the MOTransporter would be the same as the current.");
+    MANGOS_ASSERT(dynInfo->first != transportBase->GetOwner()->GetMapId() && "The next mapId for the MOTransporter would be the same as the current.");
 
     // ToDo: Maybe it's better to load all continental maps on server startup directly and use sMapMgr.FindMap() here instead
-    Map* nextMap = sMapMgr.CreateMap(itr2->first, NULL);
+    Map* nextMap = sMapMgr.CreateMap(dynInfo->first, NULL);
     MANGOS_ASSERT(nextMap);
 
     // Create new transporter on the next map
-    G3D::Vector3 const& startPos = itr2->second->getPoint(itr2->second->first());
-    CreateTransporter(itr->second.goInfo, nextMap, startPos.x, startPos.y, startPos.z, itr->second.period);
+    G3D::Vector3 const& startPos = dynInfo->second->getPoint(dynInfo->second->first());
+    CreateTransporter(staticInfo->second.goInfo, nextMap, startPos.x, startPos.y, startPos.z, staticInfo->second.period);
 
     /* Teleport player passengers to the next map,
         and destroy the transporter and it's other passengers */
-    for (PassengerMap::const_iterator itr3 = transportBase->GetPassengers().begin(); itr3 != transportBase->GetPassengers().end(); itr3 = transportBase->GetPassengers().begin())
+    for (PassengerMap::const_iterator passengerItr = transportBase->GetPassengers().begin(); passengerItr != transportBase->GetPassengers().end(); passengerItr = transportBase->GetPassengers().begin())
     {
-        MANGOS_ASSERT(itr3->first);
+        MANGOS_ASSERT(passengerItr->first);
 
-        if (itr3->first->GetTypeId() == TYPEID_PLAYER)
+        if (passengerItr->first->GetTypeId() == TYPEID_PLAYER)
         {
-            Player* plr = (Player*)itr3->first;
+            Player* plr = (Player*)passengerItr->first;
 
             // Is this correct?
             if (plr->isDead() && !plr->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_GHOST))
@@ -188,12 +188,10 @@ void TransportMgr::ReachedLastWaypoint(GOTransportBase const* transportBase)
             MANGOS_ASSERT(transportInfo);
 
             // TeleportTo unboards passenger
-            if (!plr->TeleportTo(itr2->first, transportInfo->GetLocalPositionX(), transportInfo->GetLocalPositionY(),
-                transportInfo->GetLocalPositionZ(), transportInfo->GetLocalOrientation(), 0, NULL, itr->second.goInfo->id))
-                plr->RepopAtGraveyard(); // teleport to near graveyard if on transport, looks blizz like :)
+            if (!plr->TeleportTo(dynInfo->first /*new map id*/, transportInfo->GetLocalPositionX(), transportInfo->GetLocalPositionY(),
+                transportInfo->GetLocalPositionZ(), transportInfo->GetLocalOrientation(), 0, NULL, staticInfo->second.goInfo->id))
+                plr->RepopAtGraveyard();                    // teleport to near graveyard if on transport, looks blizz like :)
         }
-        //else
-        // remove WorldObject
     }
 
     //HACK
