@@ -109,6 +109,9 @@ class GOTransportBase : public TransportBase
         GameObject* GetOwner() const { return (GameObject*)m_owner; }
         int32 GetPathProgress() const { return m_pathProgress; }
 
+        void InitializePassengers();
+        void DestroyAllPassengers();
+
     private:
         void LoadTransportSpline();
         void UpdateTransportSpline(uint32 diff);
@@ -124,6 +127,9 @@ class GOTransportBase : public TransportBase
         int32 m_timePassed;
         int32 m_pathProgress;
         bool m_bArrived;
+
+        bool m_bInitialized;
+        GuidList m_summonedPassengers;
 };
 
 /**

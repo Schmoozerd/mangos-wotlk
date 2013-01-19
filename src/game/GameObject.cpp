@@ -531,6 +531,9 @@ void GameObject::Delete()
     SetGoState(GO_STATE_READY);
     SetUInt32Value(GAMEOBJECT_FLAGS, GetGOInfo()->flags);
 
+    if (GetGoType() == GAMEOBJECT_TYPE_MO_TRANSPORT && GetTransportBase())
+        GetTransportBase()->DestroyAllPassengers();
+
     if (uint16 poolid = sPoolMgr.IsPartOfAPool<GameObject>(GetGUIDLow()))
         sPoolMgr.UpdatePool<GameObject>(*GetMap()->GetPersistentState(), poolid, GetGUIDLow());
     else

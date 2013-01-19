@@ -194,7 +194,8 @@ GOTransportBase::GOTransportBase(GameObject* owner, uint32 pathId) :
     m_pointIdx(0),
     m_timePassed(0),
     m_pathProgress(0),
-    m_bArrived(false)
+    m_bArrived(false),
+    m_bInitialized(false)
 {
     LoadTransportSpline();
 }
@@ -245,6 +246,12 @@ bool GOTransportBase::UnBoard(WorldObject* passenger)
 
 void GOTransportBase::Update(uint32 diff)
 {
+    if (!m_bInitialized) // TODO REMOVE and call directly when the MOT is properly created
+    {
+        InitializePassengers();                             // Summon passengers
+        m_bInitialized = true;
+    }
+
     if (m_bArrived)
         return;
 
@@ -318,6 +325,28 @@ void GOTransportBase::Update(uint32 diff)
     // Last waypoint is reached
     if (m_bArrived)
         sTransportMgr.ReachedLastWaypoint(this);
+}
+
+void GOTransportBase::InitializePassengers()
+{
+    if (Creature* pSummoned = m_owner->SummonCreature(1, m_owner->GetPositionX()+5, m_owner->GetPositionY()+5, m_owner->GetPositionZ()+30, 0.0f, TEMPSUMMON_DEAD_DESPAWN, 0))
+    {
+        m_summonedPassengers.push_back(pSummoned->GetObjectGuid());
+        Board(pSummoned, 5.0f, 5.0f, 30.0f, 0.0f);
+        pSummoned->SetObjectScale(5.0f);
+    }
+}
+
+void GOTransportBase::DestroyAllPassengers()
+{
+    for (GuidList::iterator itr = m_summonedPassengers.begin(); itr != m_summonedPassengers.end(); ++itr)
+    {
+        Creature* pSummoned = m_owner->GetMap()->GetCreature(*itr);
+        if (!pSummoned)
+            continue;
+        UnBoard(pSummoned);
+        pSummoned->ForcedDespawn();
+    }
 }
 
 void GOTransportBase::LoadTransportSpline()
