@@ -172,7 +172,7 @@ void TransportMgr::ReachedLastWaypoint(GOTransportBase const* transportBase)
 
     /* Teleport player passengers to the next map,
         and destroy the transporter and it's other passengers */
-    for (PassengerMap::const_iterator passengerItr = transportBase->GetPassengers().begin(); passengerItr != transportBase->GetPassengers().end(); passengerItr = transportBase->GetPassengers().begin())
+    for (PassengerMap::const_iterator passengerItr = transportBase->GetPassengers().begin(); passengerItr != transportBase->GetPassengers().end();)
     {
         MANGOS_ASSERT(passengerItr->first);
 
@@ -191,7 +191,11 @@ void TransportMgr::ReachedLastWaypoint(GOTransportBase const* transportBase)
             if (!plr->TeleportTo(dynInfo->first /*new map id*/, transportInfo->GetLocalPositionX(), transportInfo->GetLocalPositionY(),
                 transportInfo->GetLocalPositionZ(), transportInfo->GetLocalOrientation(), 0, NULL, staticInfo->second.goInfo->id))
                 plr->RepopAtGraveyard();                    // teleport to near graveyard if on transport, looks blizz like :)
+
+            passengerItr = transportBase->GetPassengers().begin();
         }
+        else
+            ++passengerItr;
     }
 
     //HACK
