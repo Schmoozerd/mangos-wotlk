@@ -30,7 +30,7 @@ TransportMgr::~TransportMgr()
 {
     // Delete splines
     for (StaticTransportInfoMap::const_iterator itr = m_staticTransportInfos.begin(); itr != m_staticTransportInfos.end(); ++itr)
-        for (uint8 i = 0; i < MAX_MAX_PER_MOT; ++i)
+        for (uint8 i = 0; i < MAX_MAPS_PER_MOT; ++i)
             delete itr->second.splineList[i];
 }
 
@@ -42,10 +42,10 @@ void TransportMgr::InsertTransporter(GameObjectInfo const* goInfo)
     TaxiPathNodeList const& path = GetTaxiPathNodeList(goInfo->moTransport.taxiPathId);
     MANGOS_ASSERT(path.size() > 0);                         // Empty path :?
 
-    SplineBase::ControlArray transportPaths[MAX_MAX_PER_MOT];
+    SplineBase::ControlArray transportPaths[MAX_MAPS_PER_MOT];
 
     // First split transport paths
-    for (uint8 i = 0; i < MAX_MAX_PER_MOT; ++i)
+    for (uint8 i = 0; i < MAX_MAPS_PER_MOT; ++i)
         transportInfo.mapIDs[i] = path[0].mapid;
 
     for (uint32 i = 0, j = 0; i < path.size(); ++i)
@@ -62,7 +62,7 @@ void TransportMgr::InsertTransporter(GameObjectInfo const* goInfo)
             transportInfo.period += path[i].delay * 1000; // Delay is in seconds
     }
 
-    for (uint32 i = 0; i < MAX_MAX_PER_MOT && (i == 0 || transportInfo.mapIDs[i - 1] != transportInfo.mapIDs[i]); ++i)
+    for (uint32 i = 0; i < MAX_MAPS_PER_MOT && (i == 0 || transportInfo.mapIDs[i - 1] != transportInfo.mapIDs[i]); ++i)
     {
         Spline<int32>* transportSpline = new Spline<int32>();
         // ToDo: Add support for cyclic transport paths
@@ -136,11 +136,11 @@ void TransportMgr::LoadTransporterForInstanceMap(Map* map)
         if (itr->second.mapIDs[0] == itr->second.mapIDs[1])
         {
             uint32 j = 0;
-            for (; j < MAX_MAX_PER_MOT; ++j)
+            for (; j < MAX_MAPS_PER_MOT; ++j)
                 if (itr->second.mapIDs[j] == map->GetId())
                     break;
 
-            if (j == MAX_MAX_PER_MOT)                       // This is not the transporter we are looking for
+            if (j == MAX_MAPS_PER_MOT)                      // This is not the transporter we are looking for
                 continue;
 
             G3D::Vector3 const& startPos = itr->second.splineList[j]->getPoint(itr->second.splineList[j]->first());
@@ -159,13 +159,13 @@ void TransportMgr::ReachedLastWaypoint(GOTransportBase const* transportBase)
     MANGOS_ASSERT(staticInfo != m_staticTransportInfos.end());
 
     uint32 mapIdx = 0;
-    for (; mapIdx < MAX_MAX_PER_MOT; ++mapIdx)
+    for (; mapIdx < MAX_MAPS_PER_MOT; ++mapIdx)
         if (staticInfo->second.mapIDs[mapIdx] == transportBase->GetOwner()->GetMapId())
             break;
 
-    MANGOS_ASSERT(mapIdx < MAX_MAX_PER_MOT && "This MOTransporter should never be created in it's current map.");
+    MANGOS_ASSERT(mapIdx < MAX_MAPS_PER_MOT && "This MOTransporter should never be created in it's current map.");
 
-    ++mapIdx %= MAX_MAX_PER_MOT;                            // Select next map
+    ++mapIdx %= MAX_MAPS_PER_MOT;                           // Select next map
 
     // Transporter that only move on one map don't need multi-map teleportation
     if (staticInfo->second.mapIDs[mapIdx] == transportBase->GetOwner()->GetMapId())
@@ -225,11 +225,11 @@ Movement::Spline<int32> const* TransportMgr::GetTransportSpline(uint32 goEntry, 
         return NULL;
 
     uint32 mapIdx = 0;
-    for (; mapIdx < MAX_MAX_PER_MOT; ++mapIdx)
+    for (; mapIdx < MAX_MAPS_PER_MOT; ++mapIdx)
         if (itr->second.mapIDs[mapIdx] == mapId)
             break;
 
-    if (mapIdx >= MAX_MAX_PER_MOT)
+    if (mapIdx >= MAX_MAPS_PER_MOT)
         return NULL;
 
     return itr->second.splineList[mapIdx];
