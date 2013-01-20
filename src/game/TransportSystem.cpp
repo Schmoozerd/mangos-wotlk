@@ -333,7 +333,7 @@ void GOTransportBase::Update(uint32 diff)
 
 void GOTransportBase::InitializePassengers()
 {
-    if (Creature* pSummoned = NULL)//m_owner->SummonCreature(1, m_owner->GetPositionX()+5, m_owner->GetPositionY()+5, m_owner->GetPositionZ()+30, 0.0f, TEMPSUMMON_DEAD_DESPAWN, 0))
+    if (Creature* pSummoned = m_owner->SummonCreature(1, m_owner->GetPositionX()+5, m_owner->GetPositionY()+5, m_owner->GetPositionZ()+30, 0.0f, TEMPSUMMON_DEAD_DESPAWN, 0))
     {
         m_summonedPassengers.push_back(pSummoned->GetObjectGuid());
         Board(pSummoned, 5.0f, 5.0f, 30.0f, 0.0f);

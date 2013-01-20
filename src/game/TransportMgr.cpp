@@ -284,8 +284,8 @@ GameObject* TransportMgr::CreateTransporter(const GameObjectInfo* goInfo, Map* m
         if (path[i].mapid != map->GetId())
             continue;
 
-        if (Creature* pSummoned = transporter->SummonCreature(1, path[i].x, path[i].y, path[i].z + 30.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, period, true))
-            pSummoned->SetObjectScale(1.0f + (path.size() - i) * 1.0f);
+        //if (Creature* pSummoned = transporter->SummonCreature(1, path[i].x, path[i].y, path[i].z + 30.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, period, true))
+        //    pSummoned->SetObjectScale(1.0f + (path.size() - i) * 1.0f);
     }
     // Debug helper, yell a bit
     map->MonsterYellToMap(GetCreatureTemplateStore(1), 41, 0, NULL);

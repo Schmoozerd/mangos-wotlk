@@ -377,10 +377,10 @@ void Object::BuildMovementUpdate(ByteBuffer* data, uint16 updateFlags) const
     {
         uint32 timeNow = WorldTimer::getMSTime();
         uint32 pathProgress = ((GameObject*)this)->GetTransportBase()->GetPathProgress();
-        //*data << uint32(timeNow > pathProgress ? timeNow - pathProgress : 0);
+        *data << uint32(timeNow > pathProgress ? timeNow - pathProgress : 0);
         //*data << uint32(timeNow);
         //*data << uint32(timeNow + pathProgress);
-        *data << uint32(pathProgress);
+        //*data << uint32(pathProgress);
     }
 
     // 0x80
