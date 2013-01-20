@@ -31,7 +31,6 @@
 #include "MapPersistentStateMgr.h"
 #include "ObjectMgr.h"
 #include "TransportSystem.h"
-#include "TransportMgr.h"
 
 void WorldSession::HandleMoveWorldportAckOpcode(WorldPacket& /*recv_data*/)
 {
@@ -112,7 +111,7 @@ void WorldSession::HandleMoveWorldportAckOpcode()
 
     if (teleportInfo.transportEntry)
     {
-        GameObject* transporter = map->GetGameObject(sTransportMgr.GetTransportGuid(teleportInfo.transportEntry));
+        GameObject* transporter = map->GetGameObject(ObjectGuid(HIGHGUID_MO_TRANSPORT, teleportInfo.transportEntry));
         GOTransportBase* transportBase = (transporter) ? transporter->GetTransportBase() : NULL;
 
         // Board player to new transporter
@@ -264,7 +263,7 @@ void WorldSession::HandleMoveTeleportAckOpcode(WorldPacket& recv_data)
 
     if (teleportInfo.transportEntry)
     {
-        GameObject* transporter = plMover->GetMap()->GetGameObject(sTransportMgr.GetTransportGuid(teleportInfo.transportEntry));
+        GameObject* transporter = plMover->GetMap()->GetGameObject(ObjectGuid(HIGHGUID_MO_TRANSPORT, teleportInfo.transportEntry));
         GOTransportBase* transportBase = (transporter) ? transporter->GetTransportBase() : NULL;
 
         // Board player to new transporter

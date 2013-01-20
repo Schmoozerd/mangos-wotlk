@@ -241,16 +241,6 @@ TaxiPathNodeList const& TransportMgr::GetTaxiPathNodeList(uint32 pathId)
     return sTaxiPathNodesByPath[pathId];
 }
 
-ObjectGuid TransportMgr::GetTransportGuid(uint32 entry)
-{
-    DynamicTransportInfoMap::const_iterator itr = m_dynamicTransportInfos.find(entry);
-
-    if (itr == m_dynamicTransportInfos.end())
-        return ObjectGuid();
-
-    return itr->second.transportGuid;
-}
-
 uint32 TransportMgr::GetCurrentMapId(uint32 entry)
 {
     DynamicTransportInfoMap::const_iterator itr = m_dynamicTransportInfos.find(entry);

@@ -79,7 +79,6 @@ class TransportMgr                                          // Mgr to hold stati
 
         Movement::Spline<int32> const* GetTransportSpline(uint32 goEntry, uint32 mapId);    // Get Static Waypoint Data for a transporter and map
         TaxiPathNodeList const& GetTaxiPathNodeList(uint32 pathId);
-        ObjectGuid GetTransportGuid(uint32 entry);                                          // Get guid of current transporter
         uint32 GetCurrentMapId(uint32 entry);                                               // Get current mapId of transporter
 
     private:
