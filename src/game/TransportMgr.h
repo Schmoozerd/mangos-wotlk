@@ -31,16 +31,21 @@ namespace Movement
 
 class GOTransportBase;
 
-typedef std::map < uint32 /*mapId*/, Movement::Spline<int32>* > TransportSplineMap; // Waypoint path in mapId
+#define MAX_MAX_PER_MOT                 2
 
 struct StaticTransportInfo                                                          // Static information for each transporter
 {
     GameObjectInfo const* goInfo;                                                   // goInfo
-    TransportSplineMap splines;                                                     // Waypoints
+    uint32 mapIDs[MAX_MAX_PER_MOT];                                                 // On which maps the transporter can be
+    Movement::Spline<int32>* splineList[MAX_MAX_PER_MOT];                           // Waypoints for map
     uint32 period;                                                                  // period for one circle
 
     StaticTransportInfo(GameObjectInfo const* _goInfo) :
-        goInfo(_goInfo), period(0) {}
+        goInfo(_goInfo), period(0)
+    {
+        memset(mapIDs, 0, MAX_MAX_PER_MOT * sizeof(uint32));
+        memset(splineList, NULL, MAX_MAX_PER_MOT * sizeof(Movement::Spline<int32>*));
+    }
 };
 
 // Track on which map a multi-map transport currently is
