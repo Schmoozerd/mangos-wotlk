@@ -29,7 +29,6 @@ namespace Movement
 class GOTransportBase;
 
 typedef std::map < uint32 /*mapId*/, Movement::Spline<int32>* > TransportSplineMap; // Waypoint path in mapId
-typedef std::set < GameObject* /*MOTransporter*/ > TransportSet;                    // Storage of current transporters TODO Get rid of pointer?
 
 struct StaticTransportInfo                                                          // Static information for each transporter
 {
@@ -70,17 +69,14 @@ class TransportMgr                                          // Mgr to hold stati
         void LoadTransporterForInstanceMap(Map* map);       // Called in Map constructor
         void ReachedLastWaypoint(GOTransportBase const* transportBase); // Called by GOTransportBase::Update when last waypoint is reached. Will trigger action for passengers
 
-        // HACK: REMOVE DAT!
-        TransportSet const& GetTransports() const { return m_transports; }
-
         Movement::Spline<int32> const* GetTransportSpline(uint32 goEntry, uint32 mapId);    // Get Static Waypoint Data for a transporter and map
         TaxiPathNodeList const& GetTaxiPathNodeList(uint32 pathId);
         ObjectGuid GetTransportGuid(uint32 entry);                                          // Get guid of current transporter
+        uint32 GetCurrentMapId(uint32 entry);                                               // Get current mapId of transporter
 
     private:
         GameObject* CreateTransporter(const GameObjectInfo* goInfo, Map* map, float x, float y, float z, uint32 period);
 
-        TransportSet m_transports;
         StaticTransportInfoMap m_staticTransportInfos;
         DynamicTransportInfoMap m_dynamicTransportInfos;
 };

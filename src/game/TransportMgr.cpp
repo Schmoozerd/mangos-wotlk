@@ -28,10 +28,6 @@ INSTANTIATE_SINGLETON_1(TransportMgr);
 
 TransportMgr::~TransportMgr()
 {
-    // HACK ALERT: REMOVE THIS !!!
-    for (TransportSet::const_iterator itr = m_transports.begin(); itr != m_transports.end(); ++itr)
-        delete *itr;
-
     // Delete splines
     for (StaticTransportInfoMap::const_iterator itr = m_staticTransportInfos.begin(); itr != m_staticTransportInfos.end(); ++itr)
         for (TransportSplineMap::const_iterator itr2 = itr->second.splines.begin(); itr2 != itr->second.splines.end(); ++itr)
@@ -204,9 +200,6 @@ void TransportMgr::ReachedLastWaypoint(GOTransportBase const* transportBase)
             ++passengerItr;
     }
 
-    //HACK
-    m_transports.erase(transportBase->GetOwner());
-
     // Destroy old transporter
     transportBase->GetOwner()->Delete();
 }
@@ -242,6 +235,16 @@ ObjectGuid TransportMgr::GetTransportGuid(uint32 entry)
     return itr->second.transportGuid;
 }
 
+uint32 TransportMgr::GetCurrentMapId(uint32 entry)
+{
+    DynamicTransportInfoMap::const_iterator itr = m_dynamicTransportInfos.find(entry);
+
+    if (itr == m_dynamicTransportInfos.end())
+        return 0;
+
+    return itr->second.currentMapId;
+}
+
 GameObject* TransportMgr::CreateTransporter(const GameObjectInfo* goInfo, Map* map, float x, float y, float z, uint32 period)
 {
     MANGOS_ASSERT(goInfo && map);
@@ -264,8 +267,6 @@ GameObject* TransportMgr::CreateTransporter(const GameObjectInfo* goInfo, Map* m
     transporter->SetUInt32Value(GAMEOBJECT_LEVEL, period);
     // Add the transporter to the map
     map->Add<GameObject>(transporter);
-    // HACK: Remove IT!!
-    m_transports.insert(transporter);
     // Insert / Overwrite dynamic transport data
     m_dynamicTransportInfos[goInfo->id] = DynamicTransportInfo(transporter->GetObjectGuid(), map->GetId());
 

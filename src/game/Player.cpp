@@ -15761,45 +15761,25 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder* holder)
 
     if (transGUID != 0)
     {
-        float lx = fields[26].GetFloat();
-        float ly = fields[27].GetFloat();
-        float lz = fields[28].GetFloat();
-        float lo = fields[29].GetFloat();
-
-        for (TransportSet::const_iterator iter = sTransportMgr.GetTransports().begin(); iter != sTransportMgr.GetTransports().end(); ++iter)
+        // ToDo: Add mot instance support, otherwise it could crash here
+        if (Map* transportMap = sMapMgr.FindMap(sTransportMgr.GetCurrentMapId(transGUID)))
         {
-            if ((*iter)->GetGUIDLow() != transGUID)
-                continue;
-
-            MapEntry const* transMapEntry = sMapStore.LookupEntry((*iter)->GetMapId());
-            // client without expansion support
-            if (GetSession()->Expansion() < transMapEntry->Expansion())
+            if (GameObject* transporter = transportMap->GetGameObject(ObjectGuid(HIGHGUID_MO_TRANSPORT, transGUID)))
             {
-                DEBUG_LOG("Player %s using client without required expansion tried login at transport at non accessible map %u. Teleport to default race/class locations.", GetName(), (*iter)->GetMapId());
+                if (GOTransportBase* transportBase = transporter->GetTransportBase())
+                {
+                    if (transportBase->Board(this, fields[26].GetFloat(),
+                            fields[27].GetFloat(), fields[28].GetFloat(), fields[29].GetFloat()))
+                        SetLocationMapId(transporter->GetMapId());
+                }
             }
-            else if ((*iter)->GetTransportBase()->Board(this, lx, ly, lz, lo))
-            {
-                SetLocationMapId((*iter)->GetMapId());
-            }
-
-            break;
         }
 
         if (!IsBoarded())
         {
             sLog.outError("%s have problems with transport guid (%u). Teleport to default race/class locations.",
-                          guid.GetString().c_str(), transGUID);
+                              guid.GetString().c_str(), transGUID);
 
-            RelocateToHomebind();
-        }
-    }
-    else                                                    // not transport case
-    {
-        MapEntry const* mapEntry = sMapStore.LookupEntry(GetMapId());
-        // client without expansion support
-        if (GetSession()->Expansion() < mapEntry->Expansion())
-        {
-            DEBUG_LOG("Player %s using client without required expansion tried login at non accessible map %u", GetName(), GetMapId());
             RelocateToHomebind();
         }
     }
