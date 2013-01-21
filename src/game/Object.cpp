@@ -542,34 +542,46 @@ void Object::BuildValuesUpdate(uint8 updatetype, ByteBuffer* data, UpdateMask* u
                     // GAMEOBJECT_TYPE_DUNGEON_DIFFICULTY can have lo flag = 2
                     //      most likely related to "can enter map" and then should be 0 if can not enter
 
-                    if (IsActivateToQuest)
+                    switch (((GameObject*)this)->GetGoType())
                     {
-                        switch (((GameObject*)this)->GetGoType())
-                        {
-                            case GAMEOBJECT_TYPE_QUESTGIVER:
+                        case GAMEOBJECT_TYPE_QUESTGIVER:
+                            if (IsActivateToQuest)
+                            {
                                 // GO also seen with GO_DYNFLAG_LO_SPARKLE explicit, relation/reason unclear (192861)
                                 *data << uint16(GO_DYNFLAG_LO_ACTIVATE);
                                 *data << uint16(-1);
                                 break;
-                            case GAMEOBJECT_TYPE_CHEST:
-                            case GAMEOBJECT_TYPE_GENERIC:
-                            case GAMEOBJECT_TYPE_SPELL_FOCUS:
-                            case GAMEOBJECT_TYPE_GOOBER:
+                            }
+                            goto explicit_default_label;
+                        case GAMEOBJECT_TYPE_CHEST:
+                        case GAMEOBJECT_TYPE_GENERIC:
+                        case GAMEOBJECT_TYPE_SPELL_FOCUS:
+                        case GAMEOBJECT_TYPE_GOOBER:
+                            if (IsActivateToQuest)
+                            {
                                 *data << uint16(GO_DYNFLAG_LO_ACTIVATE | GO_DYNFLAG_LO_SPARKLE);
                                 *data << uint16(-1);
                                 break;
-                            default:
-                                // unknown, not happen.
+                            }
+                            goto explicit_default_label;
+                        case GAMEOBJECT_TYPE_MO_TRANSPORT:
+                            if (true /*IsMoving*/)
+                            {
                                 *data << uint16(0);
-                                *data << uint16(-1);
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        // disable quest object
-                        *data << uint16(0);
-                        *data << uint16(-1);
+                                *data << uint16(((GameObject*)this)->GetTransportBase()->GetPathProgress());
+                            }
+                            else    // Not Moving
+                            {
+                                *data << uint16(GO_DYNFLAG_LO_MOT_STOPPED);
+                                *data << uint16(-1); // TODO - can also be different, how to set?
+                            }
+                            break;
+                        default:
+                        explicit_default_label:
+                            // disable quest object
+                            *data << uint16(0);
+                            *data << uint16(-1);
+                            break;
                     }
                 }
                 else
