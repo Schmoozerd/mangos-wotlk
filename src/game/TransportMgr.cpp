@@ -84,7 +84,7 @@ void TransportMgr::InsertTransporter(GameObjectInfo const* goInfo)
             }
         };
 
-        InitCacher init(goInfo->moTransport.moveSpeed);
+        InitCacher init(goInfo->moTransport.moveSpeed * 0.75f); // HACK HACK TODO TODO
         transportSpline->initLengths(init);
 
         // All points are at same coords
