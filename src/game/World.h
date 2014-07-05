@@ -285,6 +285,7 @@ enum eConfigFloatValues
 enum eConfigBoolValues
 {
     CONFIG_BOOL_GRID_UNLOAD = 0,
+    CONFIG_BOOL_GRID_FORCE_LOAD_ALL_CREATURES,
     CONFIG_BOOL_SAVE_RESPAWN_TIME_IMMEDIATELY,
     CONFIG_BOOL_OFFHAND_CHECK_AT_TALENTS_RESET,
     CONFIG_BOOL_ALLOW_TWO_SIDE_ACCOUNTS,
@@ -595,7 +596,7 @@ class World
         char const* GetDBVersion() { return m_DBVersion.c_str(); }
         char const* GetCreatureEventAIVersion() { return m_CreatureEventAIVersion.c_str(); }
 
-        
+
         /**
         * \brief: force all client to request player data
         * \param: ObjectGuid guid : guid of the specified player
@@ -603,7 +604,7 @@ class World
         *
         * Description: InvalidatePlayerDataToAllClient force all connected clients to clear specified player cache
         * FullName: World::InvalidatePlayerDataToAllClient
-        * Access: public 
+        * Access: public
         **/
         void InvalidatePlayerDataToAllClient(ObjectGuid guid);
 
